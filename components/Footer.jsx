@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslation } from "../lib/useTranslation";
 
 export default function Footer() {
+  const { t } = useTranslation();
   return (
     <footer
       style={{
@@ -47,8 +49,7 @@ export default function Footer() {
                 lineHeight: 1.6,
               }}
             >
-              Connecting farmers and buyers directly. No middlemen. No platform
-              fees.
+              {t("footer.tagline")}
             </p>
           </div>
 
@@ -62,7 +63,7 @@ export default function Footer() {
                 margin: "0 0 12px 0",
               }}
             >
-              Quick Links
+              {t("footer.quickLinks")}
             </h3>
             <ul
               style={{
@@ -82,7 +83,7 @@ export default function Footer() {
                     padding: "8px 0",
                   }}
                 >
-                  Browse Produce
+                  {t("footer.browse")}
                 </Link>
               </li>
               <li style={{ marginBottom: 8 }}>
@@ -96,7 +97,7 @@ export default function Footer() {
                     padding: "8px 0",
                   }}
                 >
-                  Farmer Login
+                  {t("footer.farmerLogin")}
                 </Link>
               </li>
               <li style={{ marginBottom: 8 }}>
@@ -110,7 +111,7 @@ export default function Footer() {
                     padding: "8px 0",
                   }}
                 >
-                  Profile
+                  {t("footer.profile")}
                 </Link>
               </li>
               <li>
@@ -124,7 +125,7 @@ export default function Footer() {
                     padding: "8px 0",
                   }}
                 >
-                  About
+                  {t("footer.about")}
                 </Link>
               </li>
             </ul>
@@ -140,7 +141,7 @@ export default function Footer() {
                 margin: "0 0 12px 0",
               }}
             >
-              Legal
+              {t("footer.legal")}
             </h3>
             <ul
               style={{
@@ -160,7 +161,7 @@ export default function Footer() {
                     padding: "8px 0",
                   }}
                 >
-                  Terms of Service
+                  {t("footer.terms")}
                 </Link>
               </li>
               <li style={{ marginBottom: 8 }}>
@@ -174,7 +175,7 @@ export default function Footer() {
                     padding: "8px 0",
                   }}
                 >
-                  Privacy Policy
+                  {t("footer.privacy")}
                 </Link>
               </li>
               <li style={{ marginBottom: 8 }}>
@@ -188,7 +189,7 @@ export default function Footer() {
                     padding: "8px 0",
                   }}
                 >
-                  How verification works
+                  {t("footer.verification")}
                 </Link>
               </li>
               <li>
@@ -202,7 +203,7 @@ export default function Footer() {
                     padding: "8px 0",
                   }}
                 >
-                  Disclaimer
+                  {t("footer.disclaimer")}
                 </Link>
               </li>
             </ul>
@@ -215,7 +216,7 @@ export default function Footer() {
                   margin: "0 0 6px 0",
                 }}
               >
-                Contact
+                {t("footer.contact")}
               </p>
               <a
                 href="mailto:anupamashetter@gmail.com"
@@ -254,8 +255,7 @@ export default function Footer() {
               textAlign: "center",
             }}
           >
-            Farm To Table only connects buyers and farmers. All transactions and
-            deliveries happen directly between them.
+            {t("footer.disclaimerText")}
           </p>
         </div>
 
@@ -273,7 +273,7 @@ export default function Footer() {
               margin: "0 0 8px 0",
             }}
           >
-            Created by{" "}
+            {t("footer.createdBy")}{" "}
             <a
               href="https://sanjanb.github.io/"
               target="_blank"
@@ -301,7 +301,7 @@ export default function Footer() {
               margin: 0,
             }}
           >
-            © 2025 Farm To Table. All rights reserved.
+            {t("footer.copyright")}
           </p>
         </div>
       </div>

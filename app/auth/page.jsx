@@ -8,9 +8,26 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
+import { useTranslation } from "../../lib/useTranslation";
+import { LANGUAGE_INFO, SUPPORTED_LANGUAGES } from "../../lib/i18n";
+
+// Map Firebase Auth error codes to friendly, translatable messages
+const AUTH_ERROR_KEYS = {
+  "auth/invalid-credential": "authPage.errInvalidCredential",
+  "auth/wrong-password": "authPage.errInvalidCredential",
+  "auth/user-not-found": "authPage.errInvalidCredential",
+  "auth/email-already-in-use": "authPage.errEmailInUse",
+  "auth/weak-password": "authPage.errWeakPassword",
+  "auth/invalid-email": "authPage.errInvalidEmail",
+  "auth/too-many-requests": "authPage.errTooMany",
+  "auth/network-request-failed": "authPage.errNetwork",
+};
 
 export default function AuthPage() {
   const router = useRouter();
+  const { t, language, setLanguage } = useTranslation();
+  const otherLanguage =
+    language === SUPPORTED_LANGUAGES.KN ? SUPPORTED_LANGUAGES.EN : SUPPORTED_LANGUAGES.KN;
   const [mode, setMode] = useState("login"); // 'login' | 'register'
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -26,7 +43,7 @@ export default function AuthPage() {
     setLoading(true);
     try {
       if (mode === "register") {
-        if (!name.trim()) throw new Error("Name is required");
+        if (!name.trim()) throw new Error(t("authPage.nameRequired"));
         const cred = await createUserWithEmailAndPassword(
           auth,
           email.trim(),
@@ -41,6 +58,7 @@ export default function AuthPage() {
           role,
           createdAt: new Date(),
           isVerified: false,
+          language,
         });
         // Redirect based on selected role
         router.replace(role === "farmer" ? "/farmer" : "/browse");
@@ -53,14 +71,15 @@ export default function AuthPage() {
         const { uid } = cred.user;
         const snap = await getDoc(doc(db, "users", uid));
         if (!snap.exists()) {
-          throw new Error("User profile not found");
+          throw new Error(t("authPage.profileNotFound"));
         }
         const data = snap.data();
         const userRole = data?.role === "farmer" ? "farmer" : "buyer";
         router.replace(userRole === "farmer" ? "/farmer" : "/browse");
       }
     } catch (err) {
-      setError(err?.message || "Something went wrong");
+      const key = AUTH_ERROR_KEYS[err?.code];
+      setError(key ? t(key) : err?.message || t("authPage.errGeneric"));
     } finally {
       setLoading(false);
     }
@@ -80,6 +99,7 @@ export default function AuthPage() {
         style={{
           width: "100%",
           maxWidth: 400,
+          position: "relative",
           background: "#FFFFFF",
           padding: 24,
           borderRadius: 8,
@@ -95,8 +115,26 @@ export default function AuthPage() {
             fontWeight: 600,
           }}
         >
-          {mode === "login" ? "Login" : "Register"}
+          {mode === "login" ? t("authPage.login") : t("authPage.register")}
         </h1>
+        <button
+          type="button"
+          onClick={() => setLanguage(otherLanguage, { persistToProfile: false })}
+          lang={otherLanguage}
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 20,
+            background: "transparent",
+            border: "1px solid #D1D5DB",
+            borderRadius: 16,
+            padding: "4px 12px",
+            fontSize: 13,
+            cursor: "pointer",
+          }}
+        >
+          {LANGUAGE_INFO[otherLanguage].nativeName}
+        </button>
 
         {mode === "register" && (
           <>
@@ -104,7 +142,7 @@ export default function AuthPage() {
               <label
                 style={{ display: "block", marginBottom: 6, color: "#6B7280" }}
               >
-                Name
+                {t("authPage.name")}
               </label>
               <input
                 type="text"
@@ -123,7 +161,7 @@ export default function AuthPage() {
               <label
                 style={{ display: "block", marginBottom: 6, color: "#6B7280" }}
               >
-                Phone Number (Optional)
+                {t("authPage.phoneOptional")}
               </label>
               <input
                 type="tel"
@@ -145,7 +183,7 @@ export default function AuthPage() {
           <label
             style={{ display: "block", marginBottom: 6, color: "#6B7280" }}
           >
-            Email
+            {t("authPage.email")}
           </label>
           <input
             type="email"
@@ -165,7 +203,7 @@ export default function AuthPage() {
           <label
             style={{ display: "block", marginBottom: 6, color: "#6B7280" }}
           >
-            Password
+            {t("authPage.password")}
           </label>
           <input
             type="password"
@@ -186,7 +224,7 @@ export default function AuthPage() {
             <label
               style={{ display: "block", marginBottom: 6, color: "#6B7280" }}
             >
-              Role
+              {t("authPage.role")}
             </label>
             <div style={{ display: "flex", gap: 16 }}>
               <label
@@ -204,7 +242,7 @@ export default function AuthPage() {
                   checked={role === "buyer"}
                   onChange={() => setRole("buyer")}
                 />
-                Buyer
+                {t("authPage.buyer")}
               </label>
               <label
                 style={{
@@ -221,7 +259,7 @@ export default function AuthPage() {
                   checked={role === "farmer"}
                   onChange={() => setRole("farmer")}
                 />
-                Farmer
+                {t("authPage.farmer")}
               </label>
             </div>
           </div>
@@ -250,10 +288,10 @@ export default function AuthPage() {
           }}
         >
           {loading
-            ? "Please wait…"
+            ? t("authPage.pleaseWait")
             : mode === "login"
-            ? "Login"
-            : "Create account"}
+            ? t("authPage.login")
+            : t("authPage.createAccount")}
         </button>
 
         <div style={{ marginTop: 12, textAlign: "center" }}>
@@ -268,13 +306,13 @@ export default function AuthPage() {
             }}
           >
             {mode === "login"
-              ? "Need an account? Register"
-              : "Have an account? Login"}
+              ? t("authPage.needAccount")
+              : t("authPage.haveAccount")}
           </button>
         </div>
 
         <p style={{ marginTop: 16, color: "#6B7280", fontSize: 12 }}>
-          No password reset flow in MVP.
+          {t("authPage.noReset")}
         </p>
       </form>
     </div>

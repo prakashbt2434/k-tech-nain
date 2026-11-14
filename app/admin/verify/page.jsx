@@ -12,9 +12,11 @@ import {
   where,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { useTranslation } from "../../../lib/useTranslation";
 
 export default function AdminVerifyPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [farmers, setFarmers] = useState([]);
@@ -32,7 +34,7 @@ export default function AdminVerifyPage() {
 
       // Check if user is admin
       if (user.email !== ADMIN_EMAIL) {
-        alert("Access denied. Admin only.");
+        alert(t("admin.accessDenied"));
         router.push("/");
         return;
       }
@@ -78,11 +80,11 @@ export default function AdminVerifyPage() {
       );
 
       alert(
-        `Farmer ${!currentStatus ? "verified" : "unverified"} successfully`
+        t(!currentStatus ? "admin.verifiedSuccess" : "admin.unverifiedSuccess")
       );
     } catch (error) {
       console.error("Error updating verification:", error);
-      alert("Failed to update verification status");
+      alert(t("admin.updateFailed"));
     } finally {
       setUpdating(null);
     }
@@ -98,7 +100,7 @@ export default function AdminVerifyPage() {
           alignItems: "center",
         }}
       >
-        <p>Loading...</p>
+        <p>{t("admin.loading")}</p>
       </div>
     );
   }
@@ -119,7 +121,7 @@ export default function AdminVerifyPage() {
           marginBottom: 8,
         }}
       >
-        Admin: Farmer Verification
+        {t("admin.title")}
       </h1>
       <p
         style={{
@@ -128,13 +130,12 @@ export default function AdminVerifyPage() {
           marginBottom: 32,
         }}
       >
-        Toggle verification status for farmer profiles. Only admins can access
-        this page.
+        {t("admin.subtitle")}
       </p>
 
       {farmers.length === 0 ? (
         <p style={{ color: "var(--color-text-secondary)" }}>
-          No farmers found.
+          {t("admin.noFarmers")}
         </p>
       ) : (
         <div
@@ -195,7 +196,7 @@ export default function AdminVerifyPage() {
                       borderRadius: 12,
                     }}
                   >
-                    {farmer.isVerified ? "✓ Verified" : "Not Verified"}
+                    {farmer.isVerified ? t("admin.verified") : t("admin.notVerified")}
                   </span>
                   <span
                     style={{
@@ -203,7 +204,7 @@ export default function AdminVerifyPage() {
                       color: "#9CA3AF",
                     }}
                   >
-                    UID: {farmer.id}
+                    {t("admin.uid", { id: farmer.id })}
                   </span>
                 </div>
               </div>
@@ -226,10 +227,10 @@ export default function AdminVerifyPage() {
                 }}
               >
                 {updating === farmer.id
-                  ? "Updating..."
+                  ? t("admin.updating")
                   : farmer.isVerified
-                  ? "Unverify"
-                  : "Verify"}
+                  ? t("admin.unverify")
+                  : t("admin.verify")}
               </button>
             </div>
           ))}
@@ -253,10 +254,7 @@ export default function AdminVerifyPage() {
             lineHeight: 1.6,
           }}
         >
-          <strong>Note:</strong> This is a minimal admin tool for toggling
-          farmer verification. To change the admin email, update the ADMIN_EMAIL
-          constant in this file. In production, implement proper admin role
-          management.
+          <strong>{t("admin.note")}</strong> {t("admin.noteText")}
         </p>
       </div>
     </div>

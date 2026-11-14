@@ -15,6 +15,8 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Link from "next/link";
+import { useTranslation } from "../../lib/useTranslation";
+import { LANGUAGE_INFO, SUPPORTED_LANGUAGES } from "../../lib/i18n";
 import {
   validateUpiId,
   formatUpiId,
@@ -28,6 +30,7 @@ const isDealCompleted = (deal) => {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { t, language, setLanguage } = useTranslation();
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -45,8 +48,6 @@ export default function ProfilePage() {
   const [uploadingQr, setUploadingQr] = useState(false);
   const [paymentError, setPaymentError] = useState("");
 
-  // Language preference state
-  const [editLanguage, setEditLanguage] = useState("en");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -64,7 +65,6 @@ export default function ProfilePage() {
           const data = userDoc.data();
           setUserData(data);
           setEditPhone(data.phoneNumber || "");
-          setEditLanguage(data.language || "en");
 
           // Initialize payment data for farmers
           if (data.role === "farmer") {
@@ -121,18 +121,16 @@ export default function ProfilePage() {
     try {
       await updateDoc(doc(db, "users", user.uid), {
         phoneNumber: editPhone.trim() || null,
-        language: editLanguage,
       });
       setUserData({
         ...userData,
         phoneNumber: editPhone.trim() || null,
-        language: editLanguage,
       });
       setIsEditing(false);
-      alert("Profile updated successfully!");
+      alert(t("profilePage.profileUpdated"));
     } catch (error) {
       console.error("Error updating profile:", error);
-      alert("Failed to update profile");
+      alert(t("profilePage.profileUpdateFailed"));
     } finally {
       setSaving(false);
     }
@@ -154,10 +152,10 @@ export default function ProfilePage() {
         setEditUpiId("");
         setQrCodeFile(null);
         setEditingPayment(false);
-        alert("Payment details removed successfully!");
+        alert(t("profilePage.paymentRemoved"));
       } catch (error) {
         console.error("Error removing payment details:", error);
-        setPaymentError("Failed to remove payment details");
+        setPaymentError(t("profilePage.paymentRemoveFailed"));
       } finally {
         setSaving(false);
       }
@@ -166,7 +164,7 @@ export default function ProfilePage() {
 
     // Validate UPI ID if provided
     if (editUpiId.trim() && !validateUpiId(editUpiId.trim())) {
-      setPaymentError(getUpiValidationError(editUpiId.trim()));
+      setPaymentError(getUpiValidationError(editUpiId.trim(), t));
       return;
     }
 
@@ -178,14 +176,14 @@ export default function ProfilePage() {
       if (qrCodeFile) {
         // Validate file type
         if (!qrCodeFile.type.match(/image\/(png|jpeg|jpg)/)) {
-          setPaymentError("QR code must be PNG or JPEG format");
+          setPaymentError(t("profilePage.qrFormat"));
           setSaving(false);
           return;
         }
 
         // Validate file size (max 2MB)
         if (qrCodeFile.size > 2 * 1024 * 1024) {
-          setPaymentError("QR code image must be less than 2MB");
+          setPaymentError(t("profilePage.qrSize"));
           setSaving(false);
           return;
         }
@@ -210,10 +208,10 @@ export default function ProfilePage() {
       setUserData({ ...userData, ...updateData });
       setQrCodeFile(null);
       setEditingPayment(false);
-      alert("Payment details updated successfully!");
+      alert(t("profilePage.paymentUpdated"));
     } catch (error) {
       console.error("Error updating payment details:", error);
-      setPaymentError("Failed to update payment details");
+      setPaymentError(t("profilePage.paymentUpdateFailed"));
     } finally {
       setSaving(false);
       setUploadingQr(false);
@@ -230,7 +228,7 @@ export default function ProfilePage() {
           alignItems: "center",
         }}
       >
-        <p style={{ color: "var(--color-text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--color-text-secondary)" }}>{t("profilePage.loading")}</p>
       </div>
     );
   }
@@ -286,7 +284,7 @@ export default function ProfilePage() {
               color: "#6B7280",
             }}
           >
-            {userData.role === "farmer" ? "Farmer" : "Buyer"}
+            {userData.role === "farmer" ? t("profilePage.farmer") : t("profilePage.buyer")}
           </span>
           {userData.role === "farmer" && userData.isVerified && (
             <span
@@ -299,7 +297,7 @@ export default function ProfilePage() {
                 color: "#065F46",
               }}
             >
-              ✓ Verified
+              {t("profilePage.verified")}
             </span>
           )}
           {userData.role === "farmer" && !userData.isVerified && (
@@ -313,7 +311,7 @@ export default function ProfilePage() {
                 color: "#92400E",
               }}
             >
-              Not Verified
+              {t("profilePage.notVerified")}
             </span>
           )}
         </div>
@@ -349,7 +347,7 @@ export default function ProfilePage() {
                 marginBottom: 12,
               }}
             >
-              My Listings
+              {t("profilePage.myListings")}
             </h2>
             <p
               style={{
@@ -359,7 +357,9 @@ export default function ProfilePage() {
               }}
             >
               <strong>{products.length}</strong>{" "}
-              {products.length === 1 ? "product" : "products"} listed
+              {products.length === 1
+                ? t("profilePage.productListedOne")
+                : t("profilePage.productListedMany")}
             </p>
             <Link
               href="/farmer"
@@ -375,7 +375,7 @@ export default function ProfilePage() {
                 textDecoration: "none",
               }}
             >
-              View Dashboard
+              {t("profilePage.viewDashboard")}
             </Link>
           </div>
         </>
@@ -399,7 +399,7 @@ export default function ProfilePage() {
             marginBottom: 16,
           }}
         >
-          Deals Summary
+          {t("profilePage.dealsSummary")}
         </h2>
         <div
           style={{
@@ -419,7 +419,7 @@ export default function ProfilePage() {
                 fontWeight: 600,
               }}
             >
-              Completed
+              {t("profilePage.completed")}
             </p>
             <p
               style={{
@@ -442,7 +442,7 @@ export default function ProfilePage() {
                 fontWeight: 600,
               }}
             >
-              Pending
+              {t("profilePage.pending")}
             </p>
             <p
               style={{
@@ -465,7 +465,7 @@ export default function ProfilePage() {
                 fontWeight: 600,
               }}
             >
-              Total
+              {t("profilePage.total")}
             </p>
             <p
               style={{
@@ -493,7 +493,9 @@ export default function ProfilePage() {
             textDecoration: "none",
           }}
         >
-          {userData.role === "farmer" ? "View All Deals" : "View My Deals"}
+          {userData.role === "farmer"
+            ? t("profilePage.viewAllDeals")
+            : t("profilePage.viewMyDeals")}
         </Link>
       </div>
 
@@ -516,7 +518,7 @@ export default function ProfilePage() {
               marginBottom: 8,
             }}
           >
-            Payment Details (Optional)
+            {t("profilePage.paymentTitle")}
           </h2>
           <p
             style={{
@@ -526,8 +528,7 @@ export default function ProfilePage() {
               lineHeight: 1.5,
             }}
           >
-            Add UPI payment details to help buyers pay you directly. This is
-            completely optional.
+            {t("profilePage.paymentSubtitle")}
           </p>
 
           {/* Disclaimer */}
@@ -548,8 +549,8 @@ export default function ProfilePage() {
                 lineHeight: 1.5,
               }}
             >
-              <strong>Note:</strong> The platform does not process or verify
-              payments. All payments happen directly between you and the buyer.
+              <strong>{t("profilePage.note")}</strong>{" "}
+              {t("profilePage.paymentNote")}
             </p>
           </div>
 
@@ -574,7 +575,7 @@ export default function ProfilePage() {
                     // User is disabling - ask for confirmation
                     if (userData.upiId || userData.qrCodeUrl) {
                       const confirmed = confirm(
-                        "This will remove your payment details. Continue?"
+                        t("profilePage.confirmRemove")
                       );
                       if (confirmed) {
                         setEditingPayment(true);
@@ -592,7 +593,7 @@ export default function ProfilePage() {
                   cursor: "pointer",
                 }}
               />
-              Enable QR Payment
+              {t("profilePage.enableQr")}
             </label>
           </div>
 
@@ -611,7 +612,7 @@ export default function ProfilePage() {
                         marginBottom: 4,
                       }}
                     >
-                      UPI ID:
+                      {t("profilePage.upiIdLabel")}
                     </p>
                     <p
                       style={{
@@ -620,7 +621,7 @@ export default function ProfilePage() {
                         margin: 0,
                       }}
                     >
-                      {userData.upiId || "Not provided"}
+                      {userData.upiId || t("profilePage.notProvided")}
                     </p>
                   </div>
 
@@ -634,11 +635,11 @@ export default function ProfilePage() {
                           marginBottom: 8,
                         }}
                       >
-                        QR Code:
+                        {t("profilePage.qrCodeLabel")}
                       </p>
                       <img
                         src={userData.qrCodeUrl}
-                        alt="Payment QR Code"
+                        alt={t("profilePage.qrAlt")}
                         style={{
                           maxWidth: 200,
                           height: "auto",
@@ -662,7 +663,7 @@ export default function ProfilePage() {
                       minHeight: 44,
                     }}
                   >
-                    Edit Payment Details
+                    {t("profilePage.editPayment")}
                   </button>
                 </div>
               ) : (
@@ -678,13 +679,13 @@ export default function ProfilePage() {
                         marginBottom: 6,
                       }}
                     >
-                      UPI ID (optional)
+                      {t("profilePage.upiOptional")}
                     </label>
                     <input
                       type="text"
                       value={editUpiId}
                       onChange={(e) => setEditUpiId(e.target.value)}
-                      placeholder="e.g., farmer@paytm"
+                      placeholder={t("profilePage.upiPlaceholder")}
                       style={{
                         width: "100%",
                         padding: "12px 14px",
@@ -702,8 +703,7 @@ export default function ProfilePage() {
                         marginBottom: 0,
                       }}
                     >
-                      Format: username@bankname (e.g., farmer123@paytm,
-                      9876543210@ybl)
+                      {t("profilePage.upiFormat")}
                     </p>
                   </div>
 
@@ -717,7 +717,7 @@ export default function ProfilePage() {
                         marginBottom: 6,
                       }}
                     >
-                      QR Code Image (optional, PNG/JPEG only, max 2MB)
+                      {t("profilePage.qrImageLabel")}
                     </label>
                     <input
                       type="file"
@@ -740,7 +740,7 @@ export default function ProfilePage() {
                         marginBottom: 0,
                       }}
                     >
-                      Upload a screenshot of your UPI payment QR code
+                      {t("profilePage.qrHint")}
                     </p>
                   </div>
 
@@ -779,9 +779,9 @@ export default function ProfilePage() {
                     >
                       {saving
                         ? uploadingQr
-                          ? "Uploading QR..."
-                          : "Saving..."
-                        : "Save"}
+                          ? t("profilePage.uploadingQr")
+                          : t("profilePage.saving")
+                        : t("profilePage.save")}
                     </button>
                     <button
                       onClick={() => {
@@ -808,7 +808,7 @@ export default function ProfilePage() {
                         minHeight: 44,
                       }}
                     >
-                      Cancel
+                      {t("profilePage.cancel")}
                     </button>
                   </div>
                 </div>
@@ -835,21 +835,45 @@ export default function ProfilePage() {
             marginBottom: 12,
           }}
         >
-          Account Information
+          {t("profilePage.accountInfo")}
         </h2>
         <div style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
           <p style={{ marginBottom: 8 }}>
-            <strong>Email:</strong> {userData.email}
+            <strong>{t("profilePage.email")}</strong> {userData.email}
           </p>
           <p style={{ marginBottom: 8 }}>
-            <strong>Role:</strong>{" "}
-            {userData.role === "farmer" ? "Farmer" : "Buyer"}
+            <strong>{t("profilePage.role")}</strong>{" "}
+            {userData.role === "farmer" ? t("profilePage.farmer") : t("profilePage.buyer")}
           </p>
           <div style={{ marginBottom: 8 }}>
-            <strong>Phone Number:</strong>{" "}
+            <strong>{t("profilePage.language")}</strong>{" "}
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              aria-label={t("profilePage.language")}
+              style={{
+                marginLeft: 4,
+                padding: "4px 8px",
+                border: "1px solid #E5E7EB",
+                borderRadius: 4,
+                fontSize: 14,
+              }}
+            >
+              {Object.values(SUPPORTED_LANGUAGES).map((code) => (
+                <option key={code} value={code}>
+                  {LANGUAGE_INFO[code].nativeName}
+                </option>
+              ))}
+            </select>
+            <span style={{ display: "block", fontSize: 12, marginTop: 4 }}>
+              {t("profilePage.languageHint")}
+            </span>
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <strong>{t("profilePage.phoneNumber")}</strong>{" "}
             {!isEditing ? (
               <>
-                <span>{userData.phoneNumber || "Not provided"}</span>
+                <span>{userData.phoneNumber || t("profilePage.notProvided")}</span>
                 <button
                   onClick={() => setIsEditing(true)}
                   style={{
@@ -864,7 +888,7 @@ export default function ProfilePage() {
                     minHeight: 44,
                   }}
                 >
-                  Edit
+                  {t("profilePage.edit")}
                 </button>
               </>
             ) : (
@@ -897,7 +921,7 @@ export default function ProfilePage() {
                     minHeight: 44,
                   }}
                 >
-                  {saving ? "Saving..." : "Save"}
+                  {saving ? t("profilePage.saving") : t("profilePage.save")}
                 </button>
                 <button
                   onClick={() => {
@@ -915,16 +939,18 @@ export default function ProfilePage() {
                     minHeight: 44,
                   }}
                 >
-                  Cancel
+                  {t("profilePage.cancel")}
                 </button>
               </div>
             )}
           </div>
           <p style={{ margin: 0 }}>
-            <strong>Member since:</strong>{" "}
-            {userData.createdAt
-              ? new Date(userData.createdAt.toDate()).toLocaleDateString()
-              : "N/A"}
+            <strong>{t("profilePage.memberSince")}</strong>{" "}
+            {userData.createdAt?.toDate
+              ? userData.createdAt
+                  .toDate()
+                  .toLocaleDateString(language === "kn" ? "kn-IN" : "en-IN")
+              : t("profilePage.na")}
           </p>
         </div>
       </div>

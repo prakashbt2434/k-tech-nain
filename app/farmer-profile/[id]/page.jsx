@@ -12,9 +12,11 @@ import {
   getDocs,
 } from "firebase/firestore";
 import Link from "next/link";
+import { useTranslation } from "../../../lib/useTranslation";
 
 export default function FarmerProfilePage() {
   const params = useParams();
+  const { t, language } = useTranslation();
   const farmerId = params.id;
 
   const [farmer, setFarmer] = useState(null);
@@ -30,7 +32,7 @@ export default function FarmerProfilePage() {
         // Fetch farmer details
         const farmerDoc = await getDoc(doc(db, "users", farmerId));
         if (!farmerDoc.exists()) {
-          setError("Farmer not found");
+          setError(t("farmerProfile.notFound"));
           setLoading(false);
           return;
         }
@@ -39,7 +41,7 @@ export default function FarmerProfilePage() {
 
         // Verify this is actually a farmer
         if (farmerData.role !== "farmer") {
-          setError("User is not a farmer");
+          setError(t("farmerProfile.notFarmer"));
           setLoading(false);
           return;
         }
@@ -76,7 +78,7 @@ export default function FarmerProfilePage() {
           setAverageRating(avg);
         }
       } catch (err) {
-        setError(err?.message || "Failed to load farmer profile");
+        setError(err?.message || t("farmerProfile.loadFailed"));
       } finally {
         setLoading(false);
       }
@@ -88,7 +90,7 @@ export default function FarmerProfilePage() {
   }, [farmerId]);
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return "Recently joined";
+    if (!timestamp) return t("farmerProfile.recentlyJoined");
 
     // Handle Firestore Timestamp
     let date;
@@ -100,9 +102,10 @@ export default function FarmerProfilePage() {
       date = new Date(timestamp);
     }
 
-    const month = date.toLocaleString("default", { month: "long" });
-    const year = date.getFullYear();
-    return `${month} ${year}`;
+    return date.toLocaleDateString(language === "kn" ? "kn-IN" : "en-IN", {
+      month: "long",
+      year: "numeric",
+    });
   };
 
   if (loading) {
@@ -114,7 +117,7 @@ export default function FarmerProfilePage() {
           placeItems: "center",
         }}
       >
-        <p style={{ color: "var(--color-text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--color-text-secondary)" }}>{t("farmerProfile.loading")}</p>
       </div>
     );
   }
@@ -131,7 +134,7 @@ export default function FarmerProfilePage() {
       >
         <div style={{ textAlign: "center" }}>
           <p style={{ color: "#B91C1C", marginBottom: 16 }}>
-            {error || "Farmer profile not found"}
+            {error || t("farmerProfile.profileNotFound")}
           </p>
           <Link
             href="/browse"
@@ -141,7 +144,7 @@ export default function FarmerProfilePage() {
               fontWeight: 500,
             }}
           >
-            ← Back to Browse
+            {t("farmerProfile.backToBrowse")}
           </Link>
         </div>
       </div>
@@ -169,7 +172,7 @@ export default function FarmerProfilePage() {
             display: "inline-block",
           }}
         >
-          ← Back to Browse
+          {t("farmerProfile.backToBrowse")}
         </Link>
         <div
           style={{
@@ -203,7 +206,7 @@ export default function FarmerProfilePage() {
                 fontWeight: 500,
               }}
             >
-              ✓ Basic details verified
+              {t("farmerProfile.basicVerified")}
             </span>
           )}
         </div>
@@ -215,7 +218,7 @@ export default function FarmerProfilePage() {
             marginTop: 8,
           }}
         >
-          Farmer Profile
+          {t("farmerProfile.title")}
         </p>
         {farmer.isVerified && (
           <p
@@ -230,8 +233,8 @@ export default function FarmerProfilePage() {
               lineHeight: 1.5,
             }}
           >
-            <strong>Verified:</strong> This farmer's identity has been verified
-            by the platform through basic documentation checks.
+            <strong>{t("farmerProfile.verifiedLabel")}</strong>{" "}
+            {t("farmerProfile.verifiedText")}
           </p>
         )}
       </div>
@@ -249,29 +252,32 @@ export default function FarmerProfilePage() {
         {/* Location */}
         {farmer.location && (
           <div style={infoRowStyle}>
-            <span style={labelStyle}>Location</span>
+            <span style={labelStyle}>{t("farmerProfile.location")}</span>
             <span style={valueStyle}>{farmer.location}</span>
           </div>
         )}
 
         {/* Active Listings */}
         <div style={infoRowStyle}>
-          <span style={labelStyle}>Active Listings</span>
+          <span style={labelStyle}>{t("farmerProfile.activeListings")}</span>
           <span style={valueStyle}>
-            {productsCount} {productsCount === 1 ? "product" : "products"}
+            {t(
+              productsCount === 1 ? "farmerProfile.productsOne" : "farmerProfile.productsMany",
+              { count: productsCount }
+            )}
           </span>
         </div>
 
         {/* Active Since */}
         <div style={infoRowStyle}>
-          <span style={labelStyle}>Active Since</span>
+          <span style={labelStyle}>{t("farmerProfile.activeSince")}</span>
           <span style={valueStyle}>{formatDate(farmer.createdAt)}</span>
         </div>
 
         {/* Contact Details - UPI if available */}
         {farmer.upiId && (
           <div style={infoRowStyle}>
-            <span style={labelStyle}>UPI ID</span>
+            <span style={labelStyle}>{t("farmerProfile.upiId")}</span>
             <span style={valueStyle}>{farmer.upiId}</span>
           </div>
         )}
@@ -279,7 +285,7 @@ export default function FarmerProfilePage() {
         {/* Phone Number if available */}
         {farmer.phoneNumber && (
           <div style={infoRowStyle}>
-            <span style={labelStyle}>Phone Number</span>
+            <span style={labelStyle}>{t("farmerProfile.phoneNumber")}</span>
             <span style={valueStyle}>{farmer.phoneNumber}</span>
           </div>
         )}
@@ -287,7 +293,7 @@ export default function FarmerProfilePage() {
         {/* Legacy Phone field */}
         {farmer.phone && (
           <div style={infoRowStyle}>
-            <span style={labelStyle}>Phone</span>
+            <span style={labelStyle}>{t("farmerProfile.phone")}</span>
             <span style={valueStyle}>{farmer.phone}</span>
           </div>
         )}
@@ -296,7 +302,7 @@ export default function FarmerProfilePage() {
         <div
           style={{ ...infoRowStyle, borderBottom: "none", paddingBottom: 0 }}
         >
-          <span style={labelStyle}>Email</span>
+          <span style={labelStyle}>{t("farmerProfile.email")}</span>
           <span style={valueStyle}>{farmer.email}</span>
         </div>
       </div>
@@ -321,7 +327,7 @@ export default function FarmerProfilePage() {
               marginBottom: 16,
             }}
           >
-            Buyer Feedback
+            {t("farmerProfile.buyerFeedback")}
           </h2>
 
           {/* Average Rating */}
@@ -353,8 +359,10 @@ export default function FarmerProfilePage() {
                 marginLeft: 4,
               }}
             >
-              ({feedbacks.length}{" "}
-              {feedbacks.length === 1 ? "review" : "reviews"})
+              {t(
+                feedbacks.length === 1 ? "farmerProfile.reviewsOne" : "farmerProfile.reviewsMany",
+                { count: feedbacks.length }
+              )}
             </span>
           </div>
 
@@ -426,7 +434,7 @@ export default function FarmerProfilePage() {
             transition: "opacity 0.2s",
           }}
         >
-          View All Products
+          {t("farmerProfile.viewAll")}
         </Link>
       )}
     </div>

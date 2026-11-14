@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { db } from "../../lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { useTranslation } from "../../lib/useTranslation";
 
 export default function BrowsePage() {
+  const { t } = useTranslation();
   const [allProducts, setAllProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,10 +67,10 @@ export default function BrowsePage() {
         // Check if error is due to offline/connectivity
         if (err?.message?.includes("offline")) {
           setError(
-            "Cannot connect to Firebase. Make sure Firestore is enabled in Firebase Console and you're connected to the internet."
+            t("errors.firebaseOffline")
           );
         } else {
-          setError(err?.message || "Failed to fetch products");
+          setError(err?.message || t("browse.fetchFailed"));
         }
       } finally {
         setLoading(false);
@@ -149,7 +151,7 @@ export default function BrowsePage() {
         }}
       >
         <p style={{ color: "var(--color-text-secondary)" }}>
-          Loading products...
+          {t("browse.loadingProducts")}
         </p>
       </div>
     );
@@ -172,7 +174,7 @@ export default function BrowsePage() {
           marginBottom: 8,
         }}
       >
-        Browse Produce
+        {t("browse.title")}
       </h1>
       <p
         style={{
@@ -180,8 +182,10 @@ export default function BrowsePage() {
           marginBottom: 24,
         }}
       >
-        {filteredProducts.length}{" "}
-        {filteredProducts.length === 1 ? "product" : "products"} available
+        {t(
+          filteredProducts.length === 1 ? "browse.countOne" : "browse.countMany",
+          { count: filteredProducts.length }
+        )}
       </p>
 
       {error && (
@@ -216,11 +220,11 @@ export default function BrowsePage() {
                 color: "var(--color-text-primary)",
               }}
             >
-              Search
+              {t("browse.search")}
             </label>
             <input
               type="text"
-              placeholder="Search by crop name..."
+              placeholder={t("browse.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={inputStyle}
@@ -238,7 +242,7 @@ export default function BrowsePage() {
                 color: "var(--color-text-primary)",
               }}
             >
-              Category
+              {t("browse.category")}
             </label>
             <select
               value={selectedCategory}
@@ -247,7 +251,7 @@ export default function BrowsePage() {
             >
               {categories.map((cat) => (
                 <option key={cat} value={cat}>
-                  {cat}
+                  {t(`categories.${cat}`)}
                 </option>
               ))}
             </select>
@@ -264,11 +268,11 @@ export default function BrowsePage() {
                 color: "var(--color-text-primary)",
               }}
             >
-              Min Price (₹/kg)
+              {t("browse.minPrice")}
             </label>
             <input
               type="number"
-              placeholder="Min"
+              placeholder={t("browse.min")}
               value={minPrice}
               onChange={(e) => setMinPrice(e.target.value)}
               style={inputStyle}
@@ -285,11 +289,11 @@ export default function BrowsePage() {
                 color: "var(--color-text-primary)",
               }}
             >
-              Max Price (₹/kg)
+              {t("browse.maxPrice")}
             </label>
             <input
               type="number"
-              placeholder="Max"
+              placeholder={t("browse.max")}
               value={maxPrice}
               onChange={(e) => setMaxPrice(e.target.value)}
               style={inputStyle}
@@ -306,17 +310,17 @@ export default function BrowsePage() {
                 color: "var(--color-text-primary)",
               }}
             >
-              Sort By
+              {t("browse.sortBy")}
             </label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               style={inputStyle}
             >
-              <option value="newest">Newest First</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="name">Name (A-Z)</option>
+              <option value="newest">{t("browse.sortNewest")}</option>
+              <option value="price-low">{t("browse.sortPriceLow")}</option>
+              <option value="price-high">{t("browse.sortPriceHigh")}</option>
+              <option value="name">{t("browse.sortName")}</option>
             </select>
           </div>
         </div>
@@ -326,7 +330,7 @@ export default function BrowsePage() {
         <p
           style={{ color: "var(--color-text-secondary)", textAlign: "center" }}
         >
-          No products match your filters.
+          {t("browse.noMatch")}
         </p>
       ) : (
         <>
@@ -408,7 +412,7 @@ export default function BrowsePage() {
                             color: "#991B1B",
                           }}
                         >
-                          SOLD
+                          {t("browse.sold")}
                         </span>
                       )}
                     </div>
@@ -431,7 +435,9 @@ export default function BrowsePage() {
                             color: "#1E40AF",
                           }}
                         >
-                          {product.category}
+                          {t(`categories.${product.category}`, {
+                            defaultValue: product.category,
+                          })}
                         </span>
                       )}
                       {product.farmerVerified && (
@@ -445,7 +451,7 @@ export default function BrowsePage() {
                             color: "#065F46",
                           }}
                         >
-                          ✓ Verified
+                          {t("browse.verified")}
                         </span>
                       )}
                     </div>
@@ -461,7 +467,7 @@ export default function BrowsePage() {
                             color: "#065F46",
                           }}
                         >
-                          ✓ Verified Farmer
+                          {t("browse.verifiedFarmer")}
                         </span>
                       </div>
                     )}
@@ -474,7 +480,9 @@ export default function BrowsePage() {
                         margin: 0,
                       }}
                     >
-                      ₹{parseFloat(product.price).toFixed(2)} per kg
+                      {t("browse.pricePerKg", {
+                        price: parseFloat(product.price).toFixed(2),
+                      })}
                     </p>
                     <p
                       style={{
@@ -483,7 +491,7 @@ export default function BrowsePage() {
                         margin: 0,
                       }}
                     >
-                      Available: {product.quantity}
+                      {t("browse.availableQty", { quantity: product.quantity })}
                     </p>
                   </div>
                 </div>
@@ -511,7 +519,7 @@ export default function BrowsePage() {
                   cursor: currentPage === 1 ? "not-allowed" : "pointer",
                 }}
               >
-                Previous
+                {t("browse.previous")}
               </button>
 
               <span
@@ -520,7 +528,7 @@ export default function BrowsePage() {
                   color: "var(--color-text-primary)",
                 }}
               >
-                Page {currentPage} of {totalPages}
+                {t("browse.pageOf", { current: currentPage, total: totalPages })}
               </span>
 
               <button
@@ -535,7 +543,7 @@ export default function BrowsePage() {
                     currentPage === totalPages ? "not-allowed" : "pointer",
                 }}
               >
-                Next
+                {t("browse.next")}
               </button>
             </div>
           )}

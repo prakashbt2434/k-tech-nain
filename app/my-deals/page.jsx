@@ -11,10 +11,12 @@ import {
   doc,
   getDoc,
   updateDoc,
-  addDoc,
+  setDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
+import { useTranslation } from "../../lib/useTranslation";
 
 // Helper function to determine if a deal is fully completed
 // A deal is completed ONLY when both buyer and farmer have confirmed
@@ -25,6 +27,7 @@ const isDealCompleted = (deal) => {
 
 export default function MyDealsPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [currentUser, setCurrentUser] = useState(null);
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,13 +68,16 @@ export default function MyDealsPage() {
         dealsSnapshot.docs.map(async (dealDoc) => {
           const dealData = { id: dealDoc.id, ...dealDoc.data() };
 
-          // Fetch product details
-          const productDoc = await getDoc(
-            doc(db, "products", dealData.productId)
-          );
-          const productData = productDoc.exists()
-            ? { id: productDoc.id, ...productDoc.data() }
-            : null;
+          // Fetch product details (guard against legacy deals without productId)
+          let productData = null;
+          if (dealData.productId) {
+            const productDoc = await getDoc(
+              doc(db, "products", dealData.productId)
+            );
+            productData = productDoc.exists()
+              ? { id: productDoc.id, ...productDoc.data() }
+              : null;
+          }
 
           // Fetch farmer details
           let farmerData = null;
@@ -108,7 +114,7 @@ export default function MyDealsPage() {
 
   const confirmDeal = async (dealId, alreadyConfirmed) => {
     if (alreadyConfirmed) {
-      alert("You have already confirmed this deal");
+      alert(t("myDeals.alreadyConfirmed"));
       return;
     }
 
@@ -126,12 +132,12 @@ export default function MyDealsPage() {
         )
       );
 
-      alert(
-        "Deal confirmed successfully! A confirmation notification has been sent to your registered email."
-      );
+      // Email delivery is not wired up yet (see functions/index.js), so don't
+      // promise an email here.
+      alert(t("myDeals.confirmSuccess"));
     } catch (error) {
       console.error("Error confirming deal:", error);
-      alert("Failed to confirm deal. Please try again.");
+      alert(t("myDeals.confirmError"));
     } finally {
       setConfirming(null);
     }
@@ -139,24 +145,26 @@ export default function MyDealsPage() {
 
   const submitFeedback = async (dealId, recipientId) => {
     if (!rating || rating < 1 || rating > 5) {
-      alert("Please select a rating between 1 and 5");
+      alert(t("myDeals.ratingRange"));
       return;
     }
 
     if (comment.length > 200) {
-      alert("Comment must be 200 characters or less");
+      alert(t("myDeals.commentTooLong"));
       return;
     }
 
     setSubmittingFeedback(true);
     try {
-      // Create feedback document
-      await addDoc(collection(db, "feedback"), {
+      // Create feedback document. Deterministic ID = one review per deal per
+      // author, even on double-submit.
+      await setDoc(doc(db, "feedback", `${dealId}_${currentUser.uid}`), {
         dealId,
         authorId: currentUser.uid,
         recipientId,
         rating,
         comment: comment.trim() || null,
+        createdAt: serverTimestamp(),
       });
 
       // Update local state
@@ -169,10 +177,10 @@ export default function MyDealsPage() {
       setShowFeedbackForm(null);
       setRating(5);
       setComment("");
-      alert("Feedback submitted successfully!");
+      alert(t("myDeals.feedbackSuccess"));
     } catch (error) {
       console.error("Error submitting feedback:", error);
-      alert("Failed to submit feedback. Please try again.");
+      alert(t("myDeals.feedbackError"));
     } finally {
       setSubmittingFeedback(false);
     }
@@ -188,7 +196,7 @@ export default function MyDealsPage() {
           alignItems: "center",
         }}
       >
-        <p style={{ color: "var(--color-text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--color-text-secondary)" }}>{t("myDeals.loading")}</p>
       </div>
     );
   }
@@ -209,7 +217,7 @@ export default function MyDealsPage() {
           marginBottom: 8,
         }}
       >
-        My Deals
+        {t("myDeals.title")}
       </h1>
       <p
         style={{
@@ -218,8 +226,7 @@ export default function MyDealsPage() {
           marginBottom: 32,
         }}
       >
-        Products you've expressed interest in. Confirm deals after completing
-        the transaction with the farmer.
+        {t("myDeals.subtitle")}
       </p>
 
       {deals.length === 0 ? (
@@ -238,7 +245,7 @@ export default function MyDealsPage() {
               marginBottom: 20,
             }}
           >
-            You haven't expressed interest in any products yet.
+            {t("myDeals.empty")}
           </p>
           <Link
             href="/browse"
@@ -254,7 +261,7 @@ export default function MyDealsPage() {
               textDecoration: "none",
             }}
           >
-            Browse Products
+            {t("myDeals.browseProducts")}
           </Link>
         </div>
       ) : (
@@ -313,7 +320,9 @@ export default function MyDealsPage() {
                             marginBottom: 8,
                           }}
                         >
-                          ₹{parseFloat(deal.product.price).toFixed(2)} per kg
+                          {t("myDeals.pricePerKg", {
+                            price: parseFloat(deal.product.price).toFixed(2),
+                          })}
                         </p>
                       </>
                     ) : (
@@ -323,7 +332,7 @@ export default function MyDealsPage() {
                           color: "#9CA3AF",
                         }}
                       >
-                        Product no longer available
+                        {t("myDeals.productUnavailable")}
                       </p>
                     )}
 
@@ -335,7 +344,7 @@ export default function MyDealsPage() {
                           marginTop: 8,
                         }}
                       >
-                        Farmer:{" "}
+                        {t("myDeals.farmer")}{" "}
                         <Link
                           href={`/farmer-profile/${deal.farmerId}`}
                           style={{
@@ -370,8 +379,8 @@ export default function MyDealsPage() {
                         }}
                       >
                         {deal.buyerConfirmed
-                          ? "✓ You confirmed"
-                          : "⏳ Awaiting your confirmation"}
+                          ? t("myDeals.youConfirmed")
+                          : t("myDeals.awaitingYou")}
                       </span>
                       <span
                         style={{
@@ -386,8 +395,8 @@ export default function MyDealsPage() {
                         }}
                       >
                         {deal.farmerConfirmed
-                          ? "✓ Farmer confirmed"
-                          : "⏳ Farmer not confirmed"}
+                          ? t("myDeals.farmerConfirmed")
+                          : t("myDeals.farmerNotConfirmed")}
                       </span>
                       {isCompleted && (
                         <span
@@ -400,7 +409,7 @@ export default function MyDealsPage() {
                             color: "var(--color-white)",
                           }}
                         >
-                          ✓ Deal Completed
+                          {t("myDeals.dealCompleted")}
                         </span>
                       )}
                     </div>
@@ -419,7 +428,7 @@ export default function MyDealsPage() {
                           borderRadius: 6,
                         }}
                       >
-                        Confirmed
+                        {t("myDeals.confirmed")}
                       </div>
                     ) : (
                       <button
@@ -444,8 +453,8 @@ export default function MyDealsPage() {
                         }}
                       >
                         {confirming === deal.id
-                          ? "Confirming..."
-                          : "Confirm Deal"}
+                          ? t("myDeals.confirming")
+                          : t("myDeals.confirmDeal")}
                       </button>
                     )}
                   </div>
@@ -469,9 +478,8 @@ export default function MyDealsPage() {
                         lineHeight: 1.5,
                       }}
                     >
-                      <strong>Note:</strong> Only confirm after you've
-                      successfully completed the transaction with the farmer
-                      (payment received and product delivered).
+                      <strong>{t("myDeals.note")}</strong>{" "}
+                      {t("myDeals.confirmHint")}
                     </p>
                   </div>
                 )}
@@ -496,7 +504,7 @@ export default function MyDealsPage() {
                           marginBottom: 4,
                         }}
                       >
-                        ✓ Deal Completed Successfully
+                        {t("myDeals.completedSuccess")}
                       </p>
                       <p
                         style={{
@@ -506,7 +514,7 @@ export default function MyDealsPage() {
                           lineHeight: 1.5,
                         }}
                       >
-                        Both parties have confirmed this transaction.
+                        {t("myDeals.bothConfirmed")}
                       </p>
                     </div>
 
@@ -528,7 +536,7 @@ export default function MyDealsPage() {
                             margin: 0,
                           }}
                         >
-                          ✓ You've already left feedback for this deal
+                          {t("myDeals.feedbackGiven")}
                         </p>
                       </div>
                     ) : showFeedbackForm === deal.id ? (
@@ -549,7 +557,7 @@ export default function MyDealsPage() {
                             marginBottom: 12,
                           }}
                         >
-                          Leave Feedback
+                          {t("myDeals.leaveFeedback")}
                         </h4>
                         <div style={{ marginBottom: 12 }}>
                           <label
@@ -561,7 +569,7 @@ export default function MyDealsPage() {
                               marginBottom: 6,
                             }}
                           >
-                            Rating (1-5 stars)
+                            {t("myDeals.ratingLabel")}
                           </label>
                           <div style={{ display: "flex", gap: 8 }}>
                             {[1, 2, 3, 4, 5].map((star) => (
@@ -591,13 +599,13 @@ export default function MyDealsPage() {
                               marginBottom: 6,
                             }}
                           >
-                            Comment (optional, max 200 chars)
+                            {t("myDeals.commentLabel")}
                           </label>
                           <textarea
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             maxLength={200}
-                            placeholder="Share your experience..."
+                            placeholder={t("myDeals.commentPlaceholder")}
                             style={{
                               width: "100%",
                               minHeight: 80,
@@ -640,7 +648,7 @@ export default function MyDealsPage() {
                                 : "pointer",
                             }}
                           >
-                            {submittingFeedback ? "Submitting..." : "Submit"}
+                            {submittingFeedback ? t("myDeals.submitting") : t("myDeals.submit")}
                           </button>
                           <button
                             onClick={() => {
@@ -662,7 +670,7 @@ export default function MyDealsPage() {
                                 : "pointer",
                             }}
                           >
-                            Cancel
+                            {t("myDeals.cancel")}
                           </button>
                         </div>
                       </div>
@@ -682,7 +690,7 @@ export default function MyDealsPage() {
                           width: "100%",
                         }}
                       >
-                        Leave Feedback
+                        {t("myDeals.leaveFeedback")}
                       </button>
                     )}
                   </>
