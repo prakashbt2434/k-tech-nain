@@ -183,10 +183,10 @@ Farm To Table addresses these issues by:
 
 ### Prerequisites
 
-- Node.js 18.0 or higher
-- npm or yarn package manager
-- Firebase account (free tier supported)
-- Modern web browser
+- Node.js 20.9 or higher (required by Next.js 16; Cloud Functions run on Node 22)
+- npm
+- Firebase account (Blaze plan only needed for Cloud Functions)
+- Firebase CLI (`npm i -g firebase-tools`) to deploy rules and functions
 
 ### Installation
 
@@ -205,24 +205,27 @@ npm install
 
 3. Configure environment variables:
 
-Create `.env.local` file in the project root:
-
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+```bash
+cp .env.example .env.local
 ```
+
+Fill in the values from Firebase Console → Project settings → Your apps → Web app.
+On Vercel/Netlify, add the same `NEXT_PUBLIC_FIREBASE_*` variables in the project
+settings and **redeploy** — they are baked in at build time. If they are missing,
+the app shows a "Firebase is not configured" screen listing what's absent.
 
 4. Set up Firebase:
 
    - Create a new Firebase project
    - Enable Email/Password authentication
-   - Create a Firestore database (production or test mode)
-   - Enable Firebase Storage
-   - Copy configuration to `.env.local`
+   - Create a Firestore database
+   - Enable Firebase Storage (for UPI QR codes)
+   - Deploy the security rules shipped in this repo:
+
+```bash
+firebase use <your-project-id>
+firebase deploy --only firestore:rules,storage
+```
 
 5. Start development server:
 
@@ -231,6 +234,22 @@ npm run dev
 ```
 
 6. Open [http://localhost:3000](http://localhost:3000)
+
+### Language (English / ಕನ್ನಡ)
+
+All pages are translated. Visitors switch language with the toggle in the
+navigation bar; logged-in users can also change it on **Profile**. The choice is
+saved in the browser and in `users/{uid}.language`. Strings live in
+`locales/en.json` and `locales/kn.json` — add a key to both files and use it with
+`const { t } = useTranslation(); t("namespace.key")`.
+
+### Deal notification emails
+
+`functions/index.js` queues an email for both parties when a deal is confirmed,
+rendered in each recipient's language (`functions/emailTemplates.js`). Sending is
+currently a **stub**: logs are marked `SKIPPED` with
+`skipReason: EMAIL_PROVIDER_NOT_CONFIGURED`. To go live, implement `sendEmail()`
+with Nodemailer/Gmail or SendGrid, then `firebase deploy --only functions`.
 
 ---
 
