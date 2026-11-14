@@ -1,0 +1,130 @@
+rules_version = '2';
+
+// Security rules for Farm To Table.
+// Deploy with: firebase deploy --only firestore:rules
+//
+// These mirror how the app reads/writes data. Before deploying over existing
+// rules, compare with what's in Firebase Console → Firestore → Rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Keep in sync with ADMIN_EMAIL in app/admin/verify/page.jsx
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == "admin@farmtotable.com";
+    }
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isFarmer() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "farmer";
+    }
+
+    function changedOnly(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    // ---------------------------------------------------------------- users
+    // Public read: browse/product/farmer-profile pages show farmer name,
+    // verification badge and contact details to logged-out visitors.
+    match /users/{uid} {
+      allow read: if true;
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.role in ["farmer", "buyer"]
+        && request.resource.data.isVerified == false;
+
+      // Owners edit their profile but cannot verify themselves or switch role.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(["isVerified", "role", "uid", "email"]);
+
+      // Admin may only toggle verification.
+      allow update: if isAdmin() && changedOnly(["isVerified", "verifiedAt"]);
+
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------- products
+    match /products/{productId} {
+      allow read: if true;
+
+      allow create: if isFarmer()
+        && request.resource.data.farmerId == request.auth.uid
+        && request.resource.data.status in ["available", "sold"];
+
+      allow update: if signedIn()
+        && resource.data.farmerId == request.auth.uid
+        && request.resource.data.farmerId == resource.data.farmerId;
+
+      allow delete: if signedIn() && resource.data.farmerId == request.auth.uid;
+    }
+
+    // ---------------------------------------------------------------- deals
+    match /deals/{dealId} {
+      allow read: if signedIn()
+        && (resource.data.buyerId == request.auth.uid
+            || resource.data.farmerId == request.auth.uid);
+
+      // Buyer expresses interest. Both confirmations must start false and the
+      // farmer must be the product's owner. `create` only fires for new docs,
+      // so the deterministic ID {productId}_{buyerId} also blocks duplicates.
+      allow create: if signedIn()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.resource.data.buyerConfirmed == false
+        && request.resource.data.farmerConfirmed == false
+        && request.resource.data.farmerId
+             == get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.farmerId
+        && request.resource.data.farmerId != request.auth.uid;
+
+      // Each party can only flip their own confirmation to true.
+      allow update: if signedIn()
+        && resource.data.buyerId == request.auth.uid
+        && changedOnly(["buyerConfirmed"])
+        && request.resource.data.buyerConfirmed == true;
+
+      allow update: if signedIn()
+        && resource.data.farmerId == request.auth.uid
+        && changedOnly(["farmerConfirmed"])
+        && request.resource.data.farmerConfirmed == true;
+
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------- feedback
+    match /feedback/{feedbackId} {
+      // Public: shown on farmer profiles.
+      allow read: if true;
+
+      // Only the buyer of a fully confirmed deal, once (ID = {dealId}_{uid}).
+      allow create: if signedIn()
+        && feedbackId == request.resource.data.dealId + "_" + request.auth.uid
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && (request.resource.data.comment == null
+            || (request.resource.data.comment is string
+                && request.resource.data.comment.size() <= 200))
+        && get(/databases/$(database)/documents/deals/$(request.resource.data.dealId)).data.buyerId == request.auth.uid
+        && get(/databases/$(database)/documents/deals/$(request.resource.data.dealId)).data.farmerId == request.resource.data.recipientId
+        && get(/databases/$(database)/documents/deals/$(request.resource.data.dealId)).data.buyerConfirmed == true
+        && get(/databases/$(database)/documents/deals/$(request.resource.data.dealId)).data.farmerConfirmed == true;
+
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------- notification_logs
+    // Written only by Cloud Functions (Admin SDK bypasses these rules).
+    match /notification_logs/{logId} {
+      allow read: if signedIn() && resource.data.recipientId == request.auth.uid;
+      allow write: if false;
+    }
+  }
+}

@@ -5,24 +5,21 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { prepareEmailData } = require("./emailTemplates");
 
 // Initialize Firebase Admin
 admin.initializeApp();
 
 const db = admin.firestore();
 
-/**
- * Notification Event Types
- */
-const NOTIFICATION_EVENTS = {
-  DEAL_CONFIRMED: "DEAL_CONFIRMED",
-  DEAL_COMPLETED: "DEAL_COMPLETED",
-};
+const { NOTIFICATION_EVENTS } = require("./emailTemplates");
 
 const NOTIFICATION_STATUS = {
   PENDING: "PENDING",
   SENT: "SENT",
   FAILED: "FAILED",
+  // Email provider not configured yet: the email was rendered but not sent.
+  SKIPPED: "SKIPPED",
 };
 
 /**
@@ -84,33 +81,34 @@ exports.processNotification = functions.firestore
         throw new Error("Recipient has no email address");
       }
 
-      // Prepare email data
-      const emailData = {
-        to: recipient.email,
-        recipientName: recipient.name,
-        recipientRole: recipient.role,
-        productName: product.cropName,
-        dealId: deal.id,
-        otherPartyName: otherParty.name,
-        eventType: notification.eventType,
-      };
+      // Render the email in the recipient's language (users/{uid}.language)
+      const email = prepareEmailData(
+        notification.eventType,
+        deal,
+        product,
+        recipient,
+        otherParty
+      );
 
-      // TODO: Integrate with actual email service (SendGrid, AWS SES, etc.)
-      // For now, we'll just log the email that would be sent
-      console.log("Would send email:", emailData);
+      const result = await sendEmail(email);
 
-      // In production, uncomment this and implement your email service:
-      // await sendEmail(emailData);
-
-      // Update notification log as sent
+      // Record what actually happened. Previously this always wrote SENT even
+      // though no email provider is wired up, which hid the problem.
       await snap.ref.update({
-        status: NOTIFICATION_STATUS.SENT,
-        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: result.sent
+          ? NOTIFICATION_STATUS.SENT
+          : NOTIFICATION_STATUS.SKIPPED,
+        sentAt: result.sent
+          ? admin.firestore.FieldValue.serverTimestamp()
+          : null,
+        skipReason: result.sent ? null : result.reason,
+        language: email.language,
+        subject: email.subject,
         attempts: (notification.attempts || 0) + 1,
         lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      console.log("Notification processed successfully:", notificationId);
+      console.log("Notification processed:", notificationId, result);
     } catch (error) {
       console.error("Error processing notification:", error);
 
@@ -186,8 +184,14 @@ exports.onDealConfirmation = functions.firestore
   });
 
 /**
- * Helper function to send email (placeholder)
- * TODO: Implement with your email service provider
+ * Send an email. STUB: no provider is configured yet, so this logs the
+ * rendered email and reports { sent: false } so the log is marked SKIPPED.
+ *
+ * To go live, replace the body with a real provider and return { sent: true }:
+ *   - Nodemailer + Gmail SMTP (app password stored with
+ *     `firebase functions:secrets:set GMAIL_APP_PASSWORD`), or
+ *   - SendGrid (`@sendgrid/mail`, key stored as a secret).
+ * emailData has: to, subject, text, html, language.
  */
 async function sendEmail(emailData) {
   // Example with SendGrid:
@@ -201,7 +205,10 @@ async function sendEmail(emailData) {
   //   html: getEmailBodyHTML(emailData),
   // });
 
-  // For now, just log
-  console.log("Sending email to:", emailData.to);
-  return Promise.resolve();
+  console.log("[email stub] Would send:", {
+    to: emailData.to,
+    subject: emailData.subject,
+    language: emailData.language,
+  });
+  return { sent: false, reason: "EMAIL_PROVIDER_NOT_CONFIGURED" };
 }
