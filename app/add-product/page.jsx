@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslation } from "../../lib/useTranslation";
 import { auth, db, storage } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -16,6 +17,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function AddProductPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export default function AddProductPage() {
         // Check file size (max 500KB for performance)
         if (image.size > 500000) {
           setError(
-            "Image must be less than 500KB. Please compress your image."
+            t("productForm.imageTooLarge")
           );
           setSubmitting(false);
           return;
@@ -118,13 +120,13 @@ export default function AddProductPage() {
       console.error("Error adding product:", err);
 
       // Better error messages
-      let errorMessage = "Failed to add product";
+      let errorMessage = t("productForm.addFailed");
       if (err?.message?.includes("offline")) {
         errorMessage =
-          "Cannot connect to Firebase. Please check your internet connection.";
+          t("productForm.offline");
       } else if (err?.message?.includes("permission")) {
         errorMessage =
-          "Permission denied. Make sure Firestore rules allow write access.";
+          t("productForm.permissionAdd");
       } else if (err?.message) {
         errorMessage = err.message;
       }
@@ -144,7 +146,7 @@ export default function AddProductPage() {
           placeItems: "center",
         }}
       >
-        <p style={{ color: "var(--color-text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--color-text-secondary)" }}>{t("productForm.loading")}</p>
       </div>
     );
   }
@@ -168,7 +170,7 @@ export default function AddProductPage() {
           marginBottom: 8,
         }}
       >
-        Add Product
+        {t("productForm.addTitle")}
       </h1>
       <p
         style={{
@@ -176,7 +178,7 @@ export default function AddProductPage() {
           marginBottom: 32,
         }}
       >
-        List your produce for buyers to discover
+        {t("productForm.addSubtitle")}
       </p>
 
       <form
@@ -189,19 +191,19 @@ export default function AddProductPage() {
         }}
       >
         <div style={fieldStyle}>
-          <label style={labelStyle}>Crop Name</label>
+          <label style={labelStyle}>{t("productForm.cropName")}</label>
           <input
             type="text"
             value={cropName}
             onChange={(e) => setCropName(e.target.value)}
             required
             style={inputStyle}
-            placeholder="e.g., Organic Tomatoes"
+            placeholder={t("productForm.cropPlaceholder")}
           />
         </div>
 
         <div style={fieldStyle}>
-          <label style={labelStyle}>Category</label>
+          <label style={labelStyle}>{t("productForm.category")}</label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -210,14 +212,14 @@ export default function AddProductPage() {
           >
             {categories.map((cat) => (
               <option key={cat} value={cat}>
-                {cat}
+                {t(`categories.${cat}`)}
               </option>
             ))}
           </select>
         </div>
 
         <div style={fieldStyle}>
-          <label style={labelStyle}>Price (₹ per kg)</label>
+          <label style={labelStyle}>{t("productForm.price")}</label>
           <input
             type="number"
             step="0.01"
@@ -225,24 +227,24 @@ export default function AddProductPage() {
             onChange={(e) => setPrice(e.target.value)}
             required
             style={inputStyle}
-            placeholder="e.g., 50"
+            placeholder={t("productForm.pricePlaceholder")}
           />
         </div>
 
         <div style={fieldStyle}>
-          <label style={labelStyle}>Quantity</label>
+          <label style={labelStyle}>{t("productForm.quantity")}</label>
           <input
             type="text"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             required
             style={inputStyle}
-            placeholder="e.g., 100 kg"
+            placeholder={t("productForm.quantityPlaceholder")}
           />
         </div>
 
         <div style={fieldStyle}>
-          <label style={labelStyle}>Product Image (optional, max 500KB)</label>
+          <label style={labelStyle}>{t("productForm.image")}</label>
           <input
             type="file"
             accept="image/*"
@@ -257,7 +259,7 @@ export default function AddProductPage() {
               marginBottom: 0,
             }}
           >
-            Tip: Compress images to under 500KB for best performance
+            {t("productForm.imageTip")}
           </p>
         </div>
 
@@ -279,12 +281,12 @@ export default function AddProductPage() {
               lineHeight: 1.5,
             }}
           >
-            💡 <strong>Tip:</strong> To add UPI payment details (optional), go
-            to your{" "}
+            💡 <strong>{t("productForm.tip")}</strong>{" "}
+            {t("productForm.upiTipBefore")}{" "}
             <Link href="/profile" style={{ color: "#1E40AF", fontWeight: 600 }}>
-              Profile
+              {t("productForm.profileLink")}
             </Link>{" "}
-            page after listing this product.
+            {t("productForm.upiTipAfter")}
           </p>
         </div>
 
@@ -311,7 +313,7 @@ export default function AddProductPage() {
             minHeight: 48,
           }}
         >
-          {submitting ? "Adding Product..." : "Add Product"}
+          {submitting ? t("productForm.adding") : t("productForm.addButton")}
         </button>
       </form>
     </div>

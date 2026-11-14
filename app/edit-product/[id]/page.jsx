@@ -6,9 +6,11 @@ import { auth, db } from "../../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import Link from "next/link";
+import { useTranslation } from "../../../lib/useTranslation";
 
 export default function EditProductPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const params = useParams();
   const productId = params.id;
 
@@ -43,7 +45,7 @@ export default function EditProductPage() {
         const productDoc = await getDoc(doc(db, "products", productId));
 
         if (!productDoc.exists()) {
-          setError("Product not found");
+          setError(t("productForm.notFound"));
           setLoading(false);
           return;
         }
@@ -52,7 +54,7 @@ export default function EditProductPage() {
 
         // Verify ownership
         if (productData.farmerId !== currentUser.uid) {
-          setError("You don't have permission to edit this product");
+          setError(t("productForm.noPermission"));
           setLoading(false);
           return;
         }
@@ -65,7 +67,7 @@ export default function EditProductPage() {
 
         setUser(currentUser);
       } catch (err) {
-        setError(err?.message || "Failed to load product");
+        setError(err?.message || t("productForm.loadFailed"));
       } finally {
         setLoading(false);
       }
@@ -91,13 +93,13 @@ export default function EditProductPage() {
 
       router.push("/farmer");
     } catch (err) {
-      let errorMessage = "Failed to update product";
+      let errorMessage = t("productForm.updateFailed");
       if (err?.message?.includes("offline")) {
         errorMessage =
-          "Cannot connect to Firebase. Please check your internet connection.";
+          t("productForm.offline");
       } else if (err?.message?.includes("permission")) {
         errorMessage =
-          "Permission denied. You may not have access to edit this product.";
+          t("productForm.permissionEdit");
       } else if (err?.message) {
         errorMessage = err.message;
       }
@@ -117,7 +119,7 @@ export default function EditProductPage() {
           placeItems: "center",
         }}
       >
-        <p style={{ color: "var(--color-text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--color-text-secondary)" }}>{t("productForm.loading")}</p>
       </div>
     );
   }
@@ -142,7 +144,7 @@ export default function EditProductPage() {
             fontWeight: 500,
           }}
         >
-          ← Back to My Listings
+          {t("productForm.backToListings")}
         </Link>
       </div>
     );
@@ -167,7 +169,7 @@ export default function EditProductPage() {
           display: "inline-block",
         }}
       >
-        ← Back to My Listings
+        {t("productForm.backToListings")}
       </Link>
 
       <h1
@@ -178,7 +180,7 @@ export default function EditProductPage() {
           marginBottom: 8,
         }}
       >
-        Edit Product
+        {t("productForm.editTitle")}
       </h1>
       <p
         style={{
@@ -186,7 +188,7 @@ export default function EditProductPage() {
           marginBottom: 32,
         }}
       >
-        Update your product details
+        {t("productForm.editSubtitle")}
       </p>
 
       <form
@@ -199,19 +201,19 @@ export default function EditProductPage() {
         }}
       >
         <div style={fieldStyle}>
-          <label style={labelStyle}>Crop Name</label>
+          <label style={labelStyle}>{t("productForm.cropName")}</label>
           <input
             type="text"
             value={cropName}
             onChange={(e) => setCropName(e.target.value)}
             required
             style={inputStyle}
-            placeholder="e.g., Organic Tomatoes"
+            placeholder={t("productForm.cropPlaceholder")}
           />
         </div>
 
         <div style={fieldStyle}>
-          <label style={labelStyle}>Category</label>
+          <label style={labelStyle}>{t("productForm.category")}</label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -220,14 +222,14 @@ export default function EditProductPage() {
           >
             {categories.map((cat) => (
               <option key={cat} value={cat}>
-                {cat}
+                {t(`categories.${cat}`)}
               </option>
             ))}
           </select>
         </div>
 
         <div style={fieldStyle}>
-          <label style={labelStyle}>Price (₹ per kg)</label>
+          <label style={labelStyle}>{t("productForm.price")}</label>
           <input
             type="number"
             step="0.01"
@@ -235,19 +237,19 @@ export default function EditProductPage() {
             onChange={(e) => setPrice(e.target.value)}
             required
             style={inputStyle}
-            placeholder="e.g., 50"
+            placeholder={t("productForm.pricePlaceholder")}
           />
         </div>
 
         <div style={fieldStyle}>
-          <label style={labelStyle}>Quantity</label>
+          <label style={labelStyle}>{t("productForm.quantity")}</label>
           <input
             type="text"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             required
             style={inputStyle}
-            placeholder="e.g., 100 kg"
+            placeholder={t("productForm.quantityPlaceholder")}
           />
         </div>
 
@@ -275,7 +277,7 @@ export default function EditProductPage() {
               minHeight: 48,
             }}
           >
-            {submitting ? "Updating..." : "Save Changes"}
+            {submitting ? t("productForm.updating") : t("productForm.saveChanges")}
           </button>
           <Link
             href="/farmer"
@@ -296,7 +298,7 @@ export default function EditProductPage() {
               minHeight: 48,
             }}
           >
-            Cancel
+            {t("productForm.cancel")}
           </Link>
         </div>
       </form>

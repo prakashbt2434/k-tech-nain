@@ -6,10 +6,27 @@ import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
+import { useTranslation } from "../lib/useTranslation";
+import { LANGUAGE_INFO, SUPPORTED_LANGUAGES } from "../lib/i18n";
 
 export default function Navigation() {
   const router = useRouter();
   const pathname = usePathname();
+  const { t, language, setLanguage } = useTranslation();
+  const otherLanguage =
+    language === SUPPORTED_LANGUAGES.KN ? SUPPORTED_LANGUAGES.EN : SUPPORTED_LANGUAGES.KN;
+  const languageToggle = (
+    <button
+      type="button"
+      onClick={() => setLanguage(otherLanguage)}
+      style={languageButtonStyle}
+      aria-label={t("nav.switchLanguage")}
+      title={t("nav.switchLanguage")}
+      lang={otherLanguage}
+    >
+      {LANGUAGE_INFO[otherLanguage].nativeName}
+    </button>
+  );
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -90,37 +107,38 @@ export default function Navigation() {
         {/* Desktop Navigation */}
         <div className="desktop-nav" style={desktopNavStyle}>
           <Link href="/" style={linkStyle}>
-            Home
+            {t("nav.home")}
           </Link>
           <Link href="/browse" style={linkStyle}>
-            Browse Produce
+            {t("nav.browse")}
           </Link>
           {user?.email === "admin@farmtotable.com" && (
             <Link href="/admin/verify" style={linkStyle}>
-              Admin
+              {t("nav.admin")}
             </Link>
           )}
           {role === "farmer" && (
             <>
               <Link href="/farmer" style={linkStyle}>
-                Dashboard
+                {t("nav.dashboard")}
               </Link>
               <Link href="/add-product" style={linkStyle}>
-                Add Product
+                {t("nav.addProduct")}
               </Link>
             </>
           )}
           {role === "buyer" && user && (
             <Link href="/my-deals" style={linkStyle}>
-              My Deals
+              {t("nav.myDeals")}
             </Link>
           )}
+          {languageToggle}
           {user ? (
             <div style={{ position: "relative" }}>
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                 style={profileIconStyle}
-                aria-label="Profile menu"
+                aria-label={t("nav.profileMenu")}
               >
                 <svg
                   width="24"
@@ -142,7 +160,7 @@ export default function Navigation() {
                     style={dropdownLinkStyle}
                     onClick={() => setProfileDropdownOpen(false)}
                   >
-                    Profile
+                    {t("nav.profile")}
                   </Link>
                   <button
                     onClick={() => {
@@ -151,14 +169,14 @@ export default function Navigation() {
                     }}
                     style={dropdownButtonStyle}
                   >
-                    Logout
+                    {t("nav.logout")}
                   </button>
                 </div>
               )}
             </div>
           ) : (
             <Link href="/auth" style={linkStyle}>
-              Login
+              {t("nav.login")}
             </Link>
           )}
         </div>
@@ -168,7 +186,7 @@ export default function Navigation() {
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="mobile-burger"
           style={burgerButtonStyle}
-          aria-label="Toggle menu"
+          aria-label={t("nav.toggleMenu")}
         >
           <div style={burgerLineStyle}></div>
           <div style={burgerLineStyle}></div>
@@ -179,19 +197,20 @@ export default function Navigation() {
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="mobile-menu" style={mobileMenuStyle}>
+          <div>{languageToggle}</div>
           <Link
             href="/"
             style={mobileLinkStyle}
             onClick={() => setMobileMenuOpen(false)}
           >
-            Home
+            {t("nav.home")}
           </Link>
           <Link
             href="/browse"
             style={mobileLinkStyle}
             onClick={() => setMobileMenuOpen(false)}
           >
-            Browse Produce
+            {t("nav.browse")}
           </Link>
           {user?.email === "admin@farmtotable.com" && (
             <Link
@@ -199,7 +218,7 @@ export default function Navigation() {
               style={mobileLinkStyle}
               onClick={() => setMobileMenuOpen(false)}
             >
-              Admin
+              {t("nav.admin")}
             </Link>
           )}
           {role === "farmer" && (
@@ -209,14 +228,14 @@ export default function Navigation() {
                 style={mobileLinkStyle}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Dashboard
+                {t("nav.dashboard")}
               </Link>
               <Link
                 href="/add-product"
                 style={mobileLinkStyle}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Add Product
+                {t("nav.addProduct")}
               </Link>
             </>
           )}
@@ -226,7 +245,7 @@ export default function Navigation() {
               style={mobileLinkStyle}
               onClick={() => setMobileMenuOpen(false)}
             >
-              My Deals
+              {t("nav.myDeals")}
             </Link>
           )}
           {user ? (
@@ -236,10 +255,10 @@ export default function Navigation() {
                 style={mobileLinkStyle}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Profile
+                {t("nav.profile")}
               </Link>
               <button onClick={handleLogout} style={mobileLogoutButtonStyle}>
-                Logout
+                {t("nav.logout")}
               </button>
             </>
           ) : (
@@ -248,7 +267,7 @@ export default function Navigation() {
               style={mobileLinkStyle}
               onClick={() => setMobileMenuOpen(false)}
             >
-              Login
+              {t("nav.login")}
             </Link>
           )}
         </div>
@@ -264,6 +283,18 @@ const desktopNavStyle = {
 };
 
 // CSS class will handle responsive display via media queries
+
+const languageButtonStyle = {
+  background: "transparent",
+  border: "1px solid #D1D5DB",
+  color: "var(--color-text-primary)",
+  padding: "6px 12px",
+  borderRadius: 16,
+  fontSize: 13,
+  fontWeight: 500,
+  cursor: "pointer",
+  minHeight: 36,
+};
 
 const linkStyle = {
   color: "var(--color-text-primary)",

@@ -7,7 +7,7 @@ import {
   doc,
   getDoc,
   collection,
-  addDoc,
+  setDoc,
   serverTimestamp,
   query,
   where,
@@ -15,9 +15,11 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
+import { useTranslation } from "../../../lib/useTranslation";
 
 export default function ProductDetailPage() {
   const params = useParams();
+  const { t, language } = useTranslation();
   const productId = params.id;
 
   const [product, setProduct] = useState(null);
@@ -41,7 +43,7 @@ export default function ProductDetailPage() {
       try {
         const productDoc = await getDoc(doc(db, "products", productId));
         if (!productDoc.exists()) {
-          setError("Product not found");
+          setError(t("product.notFound"));
           setLoading(false);
           return;
         }
@@ -70,10 +72,10 @@ export default function ProductDetailPage() {
         // Check if error is due to offline/connectivity
         if (err?.message?.includes("offline")) {
           setError(
-            "Cannot connect to Firebase. Make sure Firestore is enabled in Firebase Console and you're connected to the internet."
+            t("errors.firebaseOffline")
           );
         } else {
-          setError(err?.message || "Failed to load product");
+          setError(err?.message || t("product.loadFailed"));
         }
       } finally {
         setLoading(false);
@@ -87,12 +89,22 @@ export default function ProductDetailPage() {
 
   const createDeal = async () => {
     if (!currentUser) {
-      alert("Please log in to express interest");
+      alert(t("product.loginToExpress"));
       return;
     }
 
     if (currentUser.uid === product.farmerId) {
-      alert("You cannot create a deal for your own product");
+      alert(t("product.ownProduct"));
+      return;
+    }
+
+    if ((product.status || "available") === "sold") {
+      alert(t("product.soldOut"));
+      return;
+    }
+
+    if (existingDeal) {
+      alert(t("product.alreadyInterested"));
       return;
     }
 
@@ -107,12 +119,31 @@ export default function ProductDetailPage() {
         createdAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, "deals"), dealData);
+      // Guard against duplicate deals (double-clicks, two tabs): re-check the
+      // server, then write with a deterministic ID so a retry can't create a
+      // second document. Firestore rules also block overwriting it.
+      const existingSnapshot = await getDocs(
+        query(
+          collection(db, "deals"),
+          where("buyerId", "==", currentUser.uid),
+          where("productId", "==", product.id)
+        )
+      );
+      if (!existingSnapshot.empty) {
+        setExistingDeal(existingSnapshot.docs[0].data());
+        alert(t("product.alreadyInterested"));
+        return;
+      }
+
+      await setDoc(
+        doc(db, "deals", `${product.id}_${currentUser.uid}`),
+        dealData
+      );
       setExistingDeal(dealData);
-      alert("Interest expressed successfully! A deal record has been created.");
+      alert(t("product.interestSuccess"));
     } catch (err) {
       console.error("Error creating deal:", err);
-      alert("Failed to create deal. Please try again.");
+      alert(t("product.dealFailed"));
     } finally {
       setCreatingDeal(false);
     }
@@ -127,7 +158,7 @@ export default function ProductDetailPage() {
           placeItems: "center",
         }}
       >
-        <p style={{ color: "var(--color-text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--color-text-secondary)" }}>{t("product.loading")}</p>
       </div>
     );
   }
@@ -143,7 +174,7 @@ export default function ProductDetailPage() {
         }}
       >
         <div style={{ color: "#B91C1C", marginBottom: 20 }}>
-          {error || "Product not found"}
+          {error || t("product.notFound")}
         </div>
         <Link
           href="/browse"
@@ -154,7 +185,7 @@ export default function ProductDetailPage() {
             fontWeight: 500,
           }}
         >
-          ← Back to Browse
+          {t("product.backToBrowse")}
         </Link>
       </div>
     );
@@ -180,7 +211,7 @@ export default function ProductDetailPage() {
           display: "inline-block",
         }}
       >
-        ← Back to Browse
+        {t("product.backToBrowse")}
       </Link>
 
       <div
@@ -237,7 +268,7 @@ export default function ProductDetailPage() {
                 whiteSpace: "nowrap",
               }}
             >
-              SOLD
+              {t("product.sold")}
             </span>
           )}
         </div>
@@ -252,7 +283,7 @@ export default function ProductDetailPage() {
             marginTop: 8,
           }}
         >
-          ₹{parseFloat(product.price).toFixed(2)} per kg
+          {t("product.pricePerKg", { price: parseFloat(product.price).toFixed(2) })}
         </p>
 
         <div
@@ -273,7 +304,7 @@ export default function ProductDetailPage() {
                 fontWeight: 600,
               }}
             >
-              Available Quantity
+              {t("product.availableQuantity")}
             </p>
             <p
               style={{
@@ -297,7 +328,7 @@ export default function ProductDetailPage() {
                 fontWeight: 600,
               }}
             >
-              Posted
+              {t("product.posted")}
             </p>
             <p
               style={{
@@ -307,8 +338,10 @@ export default function ProductDetailPage() {
               }}
             >
               {product.createdAt
-                ? new Date(product.createdAt.toDate()).toLocaleDateString()
-                : "N/A"}
+                ? new Date(product.createdAt.toDate()).toLocaleDateString(
+                    language === "kn" ? "kn-IN" : "en-IN"
+                  )
+                : t("product.na")}
             </p>
           </div>
         </div>
@@ -331,7 +364,7 @@ export default function ProductDetailPage() {
               marginBottom: 8,
             }}
           >
-            Sold by:{" "}
+            {t("product.soldBy")}{" "}
             {farmer ? (
               <>
                 <Link
@@ -357,12 +390,12 @@ export default function ProductDetailPage() {
                       color: "#065F46",
                     }}
                   >
-                    ✓ Verified
+                    {t("product.verified")}
                   </span>
                 )}
               </>
             ) : (
-              <span style={{ fontWeight: 600, fontSize: 16 }}>Unknown</span>
+              <span style={{ fontWeight: 600, fontSize: 16 }}>{t("product.unknown")}</span>
             )}
           </p>
         </div>
@@ -387,7 +420,7 @@ export default function ProductDetailPage() {
                 marginBottom: 12,
               }}
             >
-              Interested in this product?
+              {t("product.interestedTitle")}
             </h2>
             <p
               style={{
@@ -397,8 +430,7 @@ export default function ProductDetailPage() {
                 lineHeight: 1.5,
               }}
             >
-              Express your interest to start a deal record. Both you and the
-              farmer can confirm the transaction later.
+              {t("product.interestedText")}
             </p>
 
             {existingDeal ? (
@@ -418,7 +450,7 @@ export default function ProductDetailPage() {
                     fontWeight: 500,
                   }}
                 >
-                  ✓ You've already expressed interest in this product
+                  {t("product.alreadyExpressed")}
                 </p>
               </div>
             ) : (
@@ -437,7 +469,7 @@ export default function ProductDetailPage() {
                   minHeight: 48,
                 }}
               >
-                {creatingDeal ? "Creating Deal..." : "Express Interest"}
+                {creatingDeal ? t("product.creatingDeal") : t("product.expressInterest")}
               </button>
             )}
           </div>
@@ -462,7 +494,7 @@ export default function ProductDetailPage() {
               marginBottom: 16,
             }}
           >
-            Payment & Contact Details
+            {t("product.paymentContact")}
           </h2>
 
           {/* Show QR payment option if farmer has provided it */}
@@ -485,14 +517,14 @@ export default function ProductDetailPage() {
                   marginBottom: 12,
                 }}
               >
-                Pay via UPI
+                {t("product.payViaUpi")}
               </h3>
 
               {farmer.qrCodeUrl && (
                 <div style={{ marginBottom: 16, textAlign: "center" }}>
                   <img
                     src={farmer.qrCodeUrl}
-                    alt="Payment QR Code"
+                    alt={t("product.qrAlt")}
                     style={{
                       maxWidth: 250,
                       height: "auto",
@@ -508,7 +540,7 @@ export default function ProductDetailPage() {
                       margin: 0,
                     }}
                   >
-                    Scan QR code to pay <strong>{farmer.name}</strong>
+                    {t("product.scanToPay")} <strong>{farmer.name}</strong>
                   </p>
                 </div>
               )}
@@ -525,7 +557,7 @@ export default function ProductDetailPage() {
                       letterSpacing: "0.5px",
                     }}
                   >
-                    UPI ID
+                    {t("product.upiId")}
                   </p>
                   <div
                     style={{
@@ -553,7 +585,7 @@ export default function ProductDetailPage() {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(farmer.upiId);
-                        alert("UPI ID copied to clipboard!");
+                        alert(t("product.upiCopied"));
                       }}
                       style={{
                         padding: "6px 12px",
@@ -566,7 +598,7 @@ export default function ProductDetailPage() {
                         cursor: "pointer",
                       }}
                     >
-                      Copy
+                      {t("product.copy")}
                     </button>
                   </div>
                 </div>
@@ -589,8 +621,8 @@ export default function ProductDetailPage() {
                     lineHeight: 1.5,
                   }}
                 >
-                  <strong>Direct payment to farmer</strong> - Payment goes
-                  directly to the farmer using the UPI details above.
+                  <strong>{t("product.directPaymentTitle")}</strong> -{" "}
+                  {t("product.directPaymentText")}
                 </p>
               </div>
             </div>
@@ -608,7 +640,7 @@ export default function ProductDetailPage() {
                 letterSpacing: "0.5px",
               }}
             >
-              Email
+              {t("product.email")}
             </p>
             <p
               style={{
@@ -617,7 +649,7 @@ export default function ProductDetailPage() {
                 margin: 0,
               }}
             >
-              {farmer?.email || "N/A"}
+              {farmer?.email || t("product.na")}
             </p>
           </div>
 
@@ -639,8 +671,7 @@ export default function ProductDetailPage() {
                   lineHeight: 1.5,
                 }}
               >
-                <strong>Note:</strong> The farmer has not provided QR payment
-                details. Please contact them via email to arrange payment.
+                <strong>{t("product.note")}</strong> {t("product.noQrText")}
               </p>
             </div>
           )}
@@ -671,8 +702,8 @@ export default function ProductDetailPage() {
               lineHeight: 1.5,
             }}
           >
-            <strong>Disclaimer:</strong> Farm To Table only connects buyers and
-            farmers. Payments and transactions happen directly between them.
+            <strong>{t("product.disclaimerLabel")}</strong>{" "}
+            {t("product.disclaimerText")}
           </p>
         </div>
       </div>

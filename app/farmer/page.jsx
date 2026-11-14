@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslation } from "../../lib/useTranslation";
 import { auth, db } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -24,6 +25,7 @@ const isDealCompleted = (deal) => {
 
 export default function FarmerPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [products, setProducts] = useState([]);
@@ -69,13 +71,16 @@ export default function FarmerPage() {
             dealsSnapshot.docs.map(async (dealDoc) => {
               const dealData = { id: dealDoc.id, ...dealDoc.data() };
 
-              // Fetch product details
-              const productDoc = await getDoc(
-                doc(db, "products", dealData.productId)
-              );
-              const productData = productDoc.exists()
-                ? { id: productDoc.id, ...productDoc.data() }
-                : null;
+              // Fetch product details (guard against legacy deals without productId)
+              let productData = null;
+              if (dealData.productId) {
+                const productDoc = await getDoc(
+                  doc(db, "products", dealData.productId)
+                );
+                productData = productDoc.exists()
+                  ? { id: productDoc.id, ...productDoc.data() }
+                  : null;
+              }
 
               // Fetch buyer details
               let buyerData = null;
@@ -98,10 +103,10 @@ export default function FarmerPage() {
           // Check if error is due to offline/connectivity
           if (err?.message?.includes("offline")) {
             setError(
-              "Cannot connect to Firebase. Make sure Firestore is enabled in Firebase Console and you're connected to the internet."
+              t("errors.firebaseOffline")
             );
           } else {
-            setError(err?.message || "Failed to fetch products");
+            setError(err?.message || t("farmerDash.fetchFailed"));
           }
         }
       } else {
@@ -114,7 +119,7 @@ export default function FarmerPage() {
 
   const confirmDeal = async (dealId, alreadyConfirmed) => {
     if (alreadyConfirmed) {
-      alert("You have already confirmed this deal");
+      alert(t("farmerDash.alreadyConfirmed"));
       return;
     }
 
@@ -132,12 +137,12 @@ export default function FarmerPage() {
         )
       );
 
-      alert(
-        "Deal confirmed successfully! A confirmation notification has been sent to your registered email."
-      );
+      // Email delivery is not wired up yet (see functions/index.js), so don't
+      // promise an email here.
+      alert(t("farmerDash.confirmSuccess"));
     } catch (err) {
       console.error("Error confirming deal:", err);
-      alert("Failed to confirm deal. Please try again.");
+      alert(t("farmerDash.confirmError"));
     } finally {
       setConfirmingDeal(null);
     }
@@ -158,7 +163,7 @@ export default function FarmerPage() {
         prev.map((p) => (p.id === productId ? { ...p, status: newStatus } : p))
       );
     } catch (err) {
-      setError(err?.message || "Failed to update product status");
+      setError(err?.message || t("farmerDash.statusFailed"));
     } finally {
       setUpdatingStatus((prev) => ({ ...prev, [productId]: false }));
     }
@@ -173,7 +178,7 @@ export default function FarmerPage() {
           placeItems: "center",
         }}
       >
-        <p style={{ color: "var(--color-text-secondary)" }}>Loading...</p>
+        <p style={{ color: "var(--color-text-secondary)" }}>{t("farmerDash.loading")}</p>
       </div>
     );
   }
@@ -200,7 +205,7 @@ export default function FarmerPage() {
               marginBottom: 16,
             }}
           >
-            Pending Deals
+            {t("farmerDash.pendingDeals")}
           </h2>
           <p
             style={{
@@ -209,8 +214,7 @@ export default function FarmerPage() {
               marginBottom: 20,
             }}
           >
-            Buyers who expressed interest in your products. Confirm deals after
-            completing the transaction.
+            {t("farmerDash.pendingSubtitle")}
           </p>
 
           <div
@@ -268,7 +272,9 @@ export default function FarmerPage() {
                               marginBottom: 8,
                             }}
                           >
-                            ₹{parseFloat(deal.product.price).toFixed(2)} per kg
+                            {t("farmerDash.pricePerKg", {
+                              price: parseFloat(deal.product.price).toFixed(2),
+                            })}
                           </p>
                         </>
                       ) : (
@@ -278,7 +284,7 @@ export default function FarmerPage() {
                             color: "#9CA3AF",
                           }}
                         >
-                          Product no longer available
+                          {t("farmerDash.productUnavailable")}
                         </p>
                       )}
 
@@ -290,7 +296,7 @@ export default function FarmerPage() {
                             marginTop: 8,
                           }}
                         >
-                          Buyer: <strong>{deal.buyer.name}</strong> (
+                          {t("farmerDash.buyer")} <strong>{deal.buyer.name}</strong> (
                           {deal.buyer.email})
                         </p>
                       )}
@@ -316,8 +322,8 @@ export default function FarmerPage() {
                           }}
                         >
                           {deal.buyerConfirmed
-                            ? "✓ Buyer confirmed"
-                            : "⏳ Buyer not confirmed"}
+                            ? t("farmerDash.buyerConfirmed")
+                            : t("farmerDash.buyerNotConfirmed")}
                         </span>
                         <span
                           style={{
@@ -332,8 +338,8 @@ export default function FarmerPage() {
                           }}
                         >
                           {deal.farmerConfirmed
-                            ? "✓ You confirmed"
-                            : "⏳ Awaiting your confirmation"}
+                            ? t("farmerDash.youConfirmed")
+                            : t("farmerDash.awaitingYou")}
                         </span>
                         {isCompleted && (
                           <span
@@ -346,7 +352,7 @@ export default function FarmerPage() {
                               color: "var(--color-white)",
                             }}
                           >
-                            ✓ Deal Completed
+                            {t("farmerDash.dealCompleted")}
                           </span>
                         )}
                       </div>
@@ -365,7 +371,7 @@ export default function FarmerPage() {
                             borderRadius: 6,
                           }}
                         >
-                          Confirmed
+                          {t("farmerDash.confirmed")}
                         </div>
                       ) : (
                         <button
@@ -392,8 +398,8 @@ export default function FarmerPage() {
                           }}
                         >
                           {confirmingDeal === deal.id
-                            ? "Confirming..."
-                            : "Confirm Deal"}
+                            ? t("farmerDash.confirming")
+                            : t("farmerDash.confirmDeal")}
                         </button>
                       )}
                     </div>
@@ -417,9 +423,8 @@ export default function FarmerPage() {
                           lineHeight: 1.5,
                         }}
                       >
-                        <strong>Note:</strong> Only confirm after you've
-                        successfully completed the transaction with the buyer
-                        (payment received and product delivered).
+                        <strong>{t("farmerDash.note")}</strong>{" "}
+                        {t("farmerDash.confirmHint")}
                       </p>
                     </div>
                   )}
@@ -443,7 +448,7 @@ export default function FarmerPage() {
                           marginBottom: 4,
                         }}
                       >
-                        ✓ Deal Completed Successfully
+                        {t("farmerDash.completedSuccess")}
                       </p>
                       <p
                         style={{
@@ -453,9 +458,7 @@ export default function FarmerPage() {
                           lineHeight: 1.5,
                         }}
                       >
-                        Both parties have confirmed this transaction. This
-                        completed deal may enable feedback features in the
-                        future.
+                        {t("farmerDash.completedText")}
                       </p>
                     </div>
                   )}
@@ -477,7 +480,7 @@ export default function FarmerPage() {
             margin: 0,
           }}
         >
-          My Listings
+          {t("farmerDash.myListings")}
         </h1>
         <p
           style={{
@@ -485,8 +488,10 @@ export default function FarmerPage() {
             margin: "8px 0 0 0",
           }}
         >
-          {products.length} {products.length === 1 ? "product" : "products"}{" "}
-          listed
+          {t(
+            products.length === 1 ? "farmerDash.listedOne" : "farmerDash.listedMany",
+            { count: products.length }
+          )}
         </p>
       </div>
 
@@ -511,7 +516,7 @@ export default function FarmerPage() {
               marginBottom: 20,
             }}
           >
-            You haven't listed any products yet.
+            {t("farmerDash.noProducts")}
           </p>
           <Link
             href="/add-product"
@@ -526,7 +531,7 @@ export default function FarmerPage() {
               fontWeight: 500,
             }}
           >
-            Add Your First Product
+            {t("farmerDash.addFirst")}
           </Link>
         </div>
       ) : (
@@ -587,7 +592,7 @@ export default function FarmerPage() {
                             fontWeight: 500,
                           }}
                         >
-                          Price
+                          {t("farmerDash.price")}
                         </p>
                         <p
                           style={{
@@ -597,7 +602,9 @@ export default function FarmerPage() {
                             margin: 0,
                           }}
                         >
-                          ₹{parseFloat(product.price).toFixed(2)}/kg
+                          {t("farmerDash.pricePerKgShort", {
+                            price: parseFloat(product.price).toFixed(2),
+                          })}
                         </p>
                       </div>
                       <div>
@@ -609,7 +616,7 @@ export default function FarmerPage() {
                             fontWeight: 500,
                           }}
                         >
-                          Available
+                          {t("farmerDash.available")}
                         </p>
                         <p
                           style={{
@@ -629,7 +636,7 @@ export default function FarmerPage() {
                         margin: 0,
                       }}
                     >
-                      UPI: {product.upiId}
+                      {t("farmerDash.upi", { upi: product.upiId })}
                     </p>
                     <div
                       style={{
@@ -656,8 +663,8 @@ export default function FarmerPage() {
                         }}
                       >
                         {(product.status || "available") === "available"
-                          ? "Available"
-                          : "Sold"}
+                          ? t("farmerDash.available")
+                          : t("farmerDash.sold")}
                       </span>
                     </div>
                   </div>
@@ -686,7 +693,7 @@ export default function FarmerPage() {
                     display: "block",
                   }}
                 >
-                  Edit
+                  {t("farmerDash.edit")}
                 </Link>
                 <button
                   onClick={(e) => {
@@ -710,12 +717,10 @@ export default function FarmerPage() {
                   }}
                 >
                   {updatingStatus[product.id]
-                    ? "Updating..."
-                    : `Mark as ${
-                        (product.status || "available") === "available"
-                          ? "Sold"
-                          : "Available"
-                      }`}
+                    ? t("farmerDash.updating")
+                    : (product.status || "available") === "available"
+                    ? t("farmerDash.markSold")
+                    : t("farmerDash.markAvailable")}
                 </button>
               </div>
             </div>

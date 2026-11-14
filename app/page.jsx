@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslation } from "../lib/useTranslation";
 
 export default function HomePage() {
+  const { t } = useTranslation();
   return (
     <div style={{ minHeight: "calc(100vh - 70px)" }}>
       {/* 1. Hero Section */}
@@ -26,7 +30,7 @@ export default function HomePage() {
             letterSpacing: "-0.02em",
           }}
         >
-          Buy fresh, pay farmers directly
+          {t("home.heroTitle")}
         </h1>
         <p
           style={{
@@ -37,8 +41,7 @@ export default function HomePage() {
             lineHeight: 1.7,
           }}
         >
-          A minimal marketplace connecting buyers with verified farmers. No
-          fees, no middlemen.
+          {t("home.heroSubtitle")}
         </p>
         <div
           style={{
@@ -49,10 +52,10 @@ export default function HomePage() {
           }}
         >
           <Link href="/browse" style={buttonStyle}>
-            Browse Produce
+            {t("home.browse")}
           </Link>
           <Link href="/auth" style={secondaryButtonStyle}>
-            I am a Farmer
+            {t("home.iAmFarmer")}
           </Link>
         </div>
       </section>
@@ -74,9 +77,9 @@ export default function HomePage() {
             margin: "clamp(16px, 3vw, 24px) 0",
           }}
         >
-          <span style={chipStyle}>Verified Farmers</span>
-          <span style={chipStyle}>No Platform Fees</span>
-          <span style={chipStyle}>Direct Payments</span>
+          <span style={chipStyle}>{t("home.chipVerified")}</span>
+          <span style={chipStyle}>{t("home.chipNoFees")}</span>
+          <span style={chipStyle}>{t("home.chipDirect")}</span>
         </div>
       </section>
 
@@ -98,7 +101,7 @@ export default function HomePage() {
             letterSpacing: "-0.02em",
           }}
         >
-          How it works
+          {t("home.howItWorks")}
         </h2>
         <div
           style={{
@@ -108,20 +111,20 @@ export default function HomePage() {
           }}
         >
           <div style={stepStyle}>
-            <h3 style={stepTitleStyle}>Farmers list produce</h3>
+            <h3 style={stepTitleStyle}>{t("home.step1Title")}</h3>
             <p style={stepTextStyle}>
-              Farmers share price, quantity, and payment details.
+              {t("home.step1Text")}
             </p>
           </div>
           <div style={stepStyle}>
-            <h3 style={stepTitleStyle}>Buyers browse</h3>
+            <h3 style={stepTitleStyle}>{t("home.step2Title")}</h3>
             <p style={stepTextStyle}>
-              Compare options and contact farmers directly.
+              {t("home.step2Text")}
             </p>
           </div>
           <div style={stepStyle}>
-            <h3 style={stepTitleStyle}>Pay directly</h3>
-            <p style={stepTextStyle}>No commission. No platform fees.</p>
+            <h3 style={stepTitleStyle}>{t("home.step3Title")}</h3>
+            <p style={stepTextStyle}>{t("home.step3Text")}</p>
           </div>
         </div>
       </section>
@@ -137,7 +140,7 @@ export default function HomePage() {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: 12 }}>
-          <span style={chipStyle}>Trust & Verification</span>
+          <span style={chipStyle}>{t("home.chipTrust")}</span>
         </div>
         <h2
           style={{
@@ -149,7 +152,7 @@ export default function HomePage() {
             letterSpacing: "-0.02em",
           }}
         >
-          How Verification Works
+          {t("home.verificationTitle")}
         </h2>
         <div
           style={{
@@ -179,7 +182,7 @@ export default function HomePage() {
                   marginBottom: 10,
                 }}
               >
-                <strong>What the "Verified Farmer" badge means</strong>
+                <strong>{t("home.badgeMeansTitle")}</strong>
               </p>
               <p
                 style={{
@@ -189,9 +192,7 @@ export default function HomePage() {
                   margin: 0,
                 }}
               >
-                The badge indicates the farmer submitted basic identity
-                documentation (e.g., ID proof or land records) reviewed by the
-                platform admin.
+                {t("home.badgeMeansText")}
               </p>
             </div>
 
@@ -205,7 +206,7 @@ export default function HomePage() {
                   marginBottom: 10,
                 }}
               >
-                <strong>What verification does NOT guarantee</strong>
+                <strong>{t("home.notGuaranteeTitle")}</strong>
               </p>
               <ul
                 style={{
@@ -216,10 +217,10 @@ export default function HomePage() {
                   margin: 0,
                 }}
               >
-                <li>Product quality or freshness</li>
-                <li>Delivery timing or reliability</li>
-                <li>Transaction success or payment security</li>
-                <li>Resolution of disputes</li>
+                <li>{t("home.notGuarantee1")}</li>
+                <li>{t("home.notGuarantee2")}</li>
+                <li>{t("home.notGuarantee3")}</li>
+                <li>{t("home.notGuarantee4")}</li>
               </ul>
             </div>
           </div>
@@ -233,9 +234,7 @@ export default function HomePage() {
               margin: 0,
             }}
           >
-            Verification is a basic trust signal, not a guarantee. Buyers should
-            communicate directly with farmers and assess listings carefully
-            before making any commitments.
+            {t("home.verificationNote")}
           </p>
         </div>
       </section>
@@ -251,7 +250,7 @@ export default function HomePage() {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: 12 }}>
-          <span style={chipStyle}>Important</span>
+          <span style={chipStyle}>{t("home.chipImportant")}</span>
         </div>
         <h2
           style={{
@@ -263,7 +262,7 @@ export default function HomePage() {
             letterSpacing: "-0.02em",
           }}
         >
-          Platform Disclaimer
+          {t("home.disclaimerTitle")}
         </h2>
         <div
           style={{
@@ -282,7 +281,7 @@ export default function HomePage() {
               marginBottom: 16,
             }}
           >
-            <strong>Farm To Table is a connection platform only.</strong>
+            <strong>{t("home.disclaimerLead")}</strong>
           </p>
           <p
             style={{
@@ -292,9 +291,7 @@ export default function HomePage() {
               marginBottom: 16,
             }}
           >
-            We provide a space where farmers can list their produce and buyers
-            can browse listings. All transactions, payments, and deliveries
-            happen directly between buyers and farmers.
+            {t("home.disclaimerText")}
           </p>
           <p
             style={{
@@ -304,7 +301,7 @@ export default function HomePage() {
               marginBottom: 16,
             }}
           >
-            <strong>What we do NOT do:</strong>
+            <strong>{t("home.weDoNot")}</strong>
           </p>
           <ul
             style={{
@@ -315,11 +312,11 @@ export default function HomePage() {
               marginBottom: 16,
             }}
           >
-            <li>Process payments or handle money</li>
-            <li>Arrange or manage deliveries</li>
-            <li>Store or handle produce</li>
-            <li>Mediate disputes between buyers and farmers</li>
-            <li>Guarantee product quality or delivery</li>
+            <li>{t("home.doNot1")}</li>
+            <li>{t("home.doNot2")}</li>
+            <li>{t("home.doNot3")}</li>
+            <li>{t("home.doNot4")}</li>
+            <li>{t("home.doNot5")}</li>
           </ul>
           <p
             style={{
@@ -329,10 +326,7 @@ export default function HomePage() {
               margin: 0,
             }}
           >
-            By using this platform, you acknowledge that all agreements,
-            transactions, and communications are your own responsibility. We
-            encourage clear communication and careful verification before any
-            transaction.
+            {t("home.ackText")}
           </p>
         </div>
       </section>
@@ -354,7 +348,7 @@ export default function HomePage() {
             lineHeight: 1.7,
           }}
         >
-          Start by browsing available produce or list your crops in minutes.
+          {t("home.ctaText")}
         </p>
         <div
           style={{
@@ -365,10 +359,10 @@ export default function HomePage() {
           }}
         >
           <Link href="/browse" style={buttonStyle}>
-            Browse Produce
+            {t("home.browse")}
           </Link>
           <Link href="/auth" style={secondaryButtonStyle}>
-            I am a Farmer
+            {t("home.iAmFarmer")}
           </Link>
         </div>
       </section>
