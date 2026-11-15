@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth, db } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { notifyIfDealConfirmed } from "../../lib/notificationService";
 import {
   doc,
   getDoc,
@@ -132,8 +133,11 @@ export default function FarmerPage() {
         )
       );
 
+      const bothConfirmed = await notifyIfDealConfirmed(dealId);
       alert(
-        "Deal confirmed successfully! A confirmation notification has been sent to your registered email."
+        bothConfirmed
+          ? "Deal confirmed by both parties! You can both see it under Notifications."
+          : "Deal confirmed! Waiting for the other party to confirm."
       );
     } catch (err) {
       console.error("Error confirming deal:", err);

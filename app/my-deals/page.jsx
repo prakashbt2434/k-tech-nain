@@ -14,6 +14,7 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { notifyIfDealConfirmed } from "../../lib/notificationService";
 import Link from "next/link";
 
 // Helper function to determine if a deal is fully completed
@@ -126,8 +127,11 @@ export default function MyDealsPage() {
         )
       );
 
+      const bothConfirmed = await notifyIfDealConfirmed(dealId);
       alert(
-        "Deal confirmed successfully! A confirmation notification has been sent to your registered email."
+        bothConfirmed
+          ? "Deal confirmed by both parties! You can both see it under Notifications."
+          : "Deal confirmed! Waiting for the other party to confirm."
       );
     } catch (error) {
       console.error("Error confirming deal:", error);

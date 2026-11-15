@@ -1,0 +1,193 @@
+rules_version = '2';
+
+// FarmToTable Firestore security rules
+// Derived from how the client code reads/writes each collection (Nov 2026).
+// Runs on the free Spark plan: no Cloud Functions or Cloud Storage. Images are
+// stored as Base64 strings in Firestore, and notifications are written by the
+// client (see lib/notificationService.js).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Mirrors ADMIN_EMAIL in lib/admin.js — keep the two in sync.
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == "bt.prakash@gmail.com"
+        && request.auth.token.email_verified == true;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function isFarmer() {
+      return signedIn() && userDoc(request.auth.uid).role == "farmer";
+    }
+
+    // Base64 image fields: absent, null, or a data URL under maxLen characters.
+    // Keeps documents under Firestore's 1 MiB limit.
+    function okImage(data, key, maxLen) {
+      return !(key in data)
+        || data[key] == null
+        || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    // Only these keys changed between the stored doc and the write
+    function onlyChanges(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // ---------- users ----------
+    // Public read: /browse, /farmer-profile and /product show farmer name,
+    // phone and UPI details to visitors who are not signed in.
+    match /users/{uid} {
+      allow read: if true;
+
+      allow create: if isSelf(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.role in ["farmer", "buyer"]
+        && request.resource.data.isVerified == false;
+
+      // Owner edits profile/payment details; cannot self-verify or switch role.
+      allow update: if isSelf(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(["uid", "role", "isVerified", "email", "createdAt"])
+        && okImage(request.resource.data, "qrCodeUrl", 420000);
+
+      // Admin toggles farmer verification only.
+      allow update: if isAdmin() && onlyChanges(["isVerified"]);
+
+      allow delete: if false;
+    }
+
+    // ---------- products ----------
+    match /products/{productId} {
+      allow read: if true;
+
+      allow create: if isFarmer()
+        && request.resource.data.farmerId == request.auth.uid
+        && request.resource.data.status == "available"
+        && request.resource.data.price is number
+        && request.resource.data.price > 0
+        && okImage(request.resource.data, "imageUrl", 700000);
+
+      // Owner edits details (edit-product) or toggles available/sold (farmer page).
+      allow update: if isSelf(resource.data.farmerId)
+        && request.resource.data.farmerId == resource.data.farmerId
+        && request.resource.data.status in ["available", "sold"]
+        && onlyChanges(["cropName", "category", "price", "quantity", "imageUrl", "status"])
+        && okImage(request.resource.data, "imageUrl", 700000);
+
+      allow delete: if isSelf(resource.data.farmerId);
+    }
+
+    // ---------- deals ----------
+    match /deals/{dealId} {
+      // Only buyer and farmer on the deal. Client queries filter on
+      // buyerId == uid or farmerId == uid, which these rules can verify.
+      allow read: if signedIn()
+        && (request.auth.uid == resource.data.buyerId
+            || request.auth.uid == resource.data.farmerId);
+
+      // Buyer expresses interest in someone else's product.
+      allow create: if signedIn()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.resource.data.farmerId != request.auth.uid
+        && request.resource.data.farmerId ==
+             get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.farmerId
+        && request.resource.data.buyerConfirmed == false
+        && request.resource.data.farmerConfirmed == false;
+
+      // Each party can only set their own confirmation flag to true.
+      allow update: if isSelf(resource.data.buyerId)
+        && onlyChanges(["buyerConfirmed"])
+        && request.resource.data.buyerConfirmed == true;
+
+      allow update: if isSelf(resource.data.farmerId)
+        && onlyChanges(["farmerConfirmed"])
+        && request.resource.data.farmerConfirmed == true;
+
+      allow delete: if false;
+    }
+
+    // ---------- feedback ----------
+    match /feedback/{feedbackId} {
+      // Public: shown on farmer profiles.
+      allow read: if true;
+
+      // Author must be a party to a deal both sides confirmed, rating the other party.
+      allow create: if signedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && (request.resource.data.comment == null
+            || (request.resource.data.comment is string
+                && request.resource.data.comment.size() <= 200))
+        && dealAllowsFeedback(request.resource.data.dealId,
+                              request.auth.uid,
+                              request.resource.data.recipientId);
+
+      allow update, delete: if false;
+    }
+
+    function dealAllowsFeedback(dealId, authorId, recipientId) {
+      let deal = get(/databases/$(database)/documents/deals/$(dealId)).data;
+      return deal.buyerConfirmed == true
+        && deal.farmerConfirmed == true
+        && ((deal.buyerId == authorId && deal.farmerId == recipientId)
+            || (deal.farmerId == authorId && deal.buyerId == recipientId));
+    }
+
+    // ---------- notification_logs ----------
+    // In-app notifications (no Cloud Functions on Spark). When a deal becomes
+    // confirmed by both parties, the confirming client creates one entry per
+    // party with ID "<dealId>_DEAL_CONFIRMED_<recipientId>". Because the ID is
+    // fixed and updates are limited to the "read" flag, a notification can
+    // only be created once and cannot be forged for a deal that is not
+    // confirmed.
+    match /notification_logs/{logId} {
+      allow read: if isSelf(resource.data.recipientId);
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(
+             ["eventType", "dealId", "productId", "recipientId", "channel", "read", "createdAt"])
+        && request.resource.data.eventType == "DEAL_CONFIRMED"
+        && request.resource.data.channel == "IN_APP"
+        && request.resource.data.read == false
+        && request.resource.data.createdAt == request.time
+        && logId == request.resource.data.dealId + "_DEAL_CONFIRMED_" + request.resource.data.recipientId
+        && dealConfirmedNotificationOk(request.resource.data);
+
+      // Recipient marks it read; nothing else can change.
+      allow update: if isSelf(resource.data.recipientId)
+        && onlyChanges(["read"])
+        && request.resource.data.read == true;
+
+      allow delete: if false;
+    }
+
+    function dealConfirmedNotificationOk(n) {
+      let deal = get(/databases/$(database)/documents/deals/$(n.dealId)).data;
+      return deal.buyerConfirmed == true
+        && deal.farmerConfirmed == true
+        && (request.auth.uid == deal.buyerId || request.auth.uid == deal.farmerId)
+        && (n.recipientId == deal.buyerId || n.recipientId == deal.farmerId)
+        && n.productId == deal.productId;
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

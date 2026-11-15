@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db, storage } from "../../lib/firebase";
+import { auth, db } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   doc,
@@ -13,7 +13,7 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { imageToDataUrl, MAX_DATA_URL_LENGTH } from "../../lib/imageToDataUrl";
 import Link from "next/link";
 import {
   validateUpiId,
@@ -183,20 +183,24 @@ export default function ProfilePage() {
           return;
         }
 
-        // Validate file size (max 2MB)
+        // Validate file size (max 2MB before shrinking)
         if (qrCodeFile.size > 2 * 1024 * 1024) {
           setPaymentError("QR code image must be less than 2MB");
           setSaving(false);
           return;
         }
 
+        // Shrink and store as Base64 in the user document (no Cloud Storage).
         setUploadingQr(true);
-        const qrRef = ref(
-          storage,
-          `qr-codes/${user.uid}/${Date.now()}-${qrCodeFile.name}`
-        );
-        await uploadBytes(qrRef, qrCodeFile);
-        qrCodeUrl = await getDownloadURL(qrRef);
+        qrCodeUrl = await imageToDataUrl(qrCodeFile);
+        if (qrCodeUrl.length > MAX_DATA_URL_LENGTH) {
+          setPaymentError(
+            "QR code image is too detailed. Please upload a tighter crop of just the QR code."
+          );
+          setSaving(false);
+          setUploadingQr(false);
+          return;
+        }
         setUploadingQr(false);
       }
 
@@ -779,7 +783,7 @@ export default function ProfilePage() {
                     >
                       {saving
                         ? uploadingQr
-                          ? "Uploading QR..."
+                          ? "Processing QR..."
                           : "Saving..."
                         : "Save"}
                     </button>

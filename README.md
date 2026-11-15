@@ -87,7 +87,9 @@ Farm To Table addresses these issues by:
 - Firebase-powered backend
 - Responsive design (desktop and mobile)
 - Offline-capable data persistence
-- Base64 image storage (500KB limit)
+- Base64 image storage in Firestore (product photos and payment QR codes)
+- In-app deal notifications (/notifications)
+- Runs entirely on the free Firebase Spark plan
 - Deal confirmation workflow
 - Trust verification system
 
@@ -106,7 +108,7 @@ Farm To Table addresses these issues by:
 
 - **Database**: Firebase Firestore
 - **Authentication**: Firebase Auth (Email/Password)
-- **Storage**: Firebase Storage (QR codes)
+- **Images**: Stored as Base64 in Firestore (no Cloud Storage, no Blaze plan)
 - **Hosting**: Vercel-ready
 
 ### Development Tools
@@ -220,9 +222,10 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 
    - Create a new Firebase project
    - Enable Email/Password authentication
-   - Create a Firestore database (production or test mode)
-   - Enable Firebase Storage
+   - Create a Firestore database (production mode)
+   - Deploy the security rules: `firebase deploy --only firestore:rules`
    - Copy configuration to `.env.local`
+   - Cloud Storage and Cloud Functions are not used, so the free Spark plan is enough
 
 5. Start development server:
 
@@ -375,8 +378,8 @@ npm run start
 
 - [ ] Environment variables configured
 - [ ] Firebase project set up
-- [ ] Firestore rules configured
-- [ ] Storage rules configured
+- [ ] Firestore rules deployed (`firebase deploy --only firestore:rules`)
+- [ ] Deployed domain added to Firebase Auth authorized domains
 - [ ] Build succeeds locally
 - [ ] All features tested
 - [ ] Documentation updated

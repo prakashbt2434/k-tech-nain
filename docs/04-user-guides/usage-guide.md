@@ -355,7 +355,7 @@ Complete guide on how to use the Farm To Table platform, covering all features a
 
 ### Access Requirements
 
-- Only accessible to the admin email: `admin@farmtotable.com`
+- Only accessible to the admin email: `bt.prakash@gmail.com`
 - Unauthorized users are redirected to homepage
 
 ### Farmer Verification
@@ -628,7 +628,7 @@ Complete guide on how to use the Farm To Table platform, covering all features a
 #### Admin Page Access Denied
 
 - Verify you're using the admin email
-- Admin email must be exactly: `admin@farmtotable.com`
+- Admin email must be exactly: `bt.prakash@gmail.com`
 - Ensure you're logged in
 - Contact system administrator if you should have access
 

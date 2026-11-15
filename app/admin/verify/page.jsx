@@ -11,7 +11,8 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, sendEmailVerification } from "firebase/auth";
+import { ADMIN_EMAIL } from "../../../lib/admin";
 
 export default function AdminVerifyPage() {
   const router = useRouter();
@@ -19,9 +20,18 @@ export default function AdminVerifyPage() {
   const [loading, setLoading] = useState(true);
   const [farmers, setFarmers] = useState([]);
   const [updating, setUpdating] = useState(null);
+  const [verificationSent, setVerificationSent] = useState(false);
 
-  // Admin email - change this to your admin email
-  const ADMIN_EMAIL = "admin@farmtotable.com";
+  // Firestore rules only accept admin writes from a verified email address.
+  const sendVerification = async () => {
+    try {
+      await sendEmailVerification(auth.currentUser);
+      setVerificationSent(true);
+    } catch (error) {
+      console.error("Error sending verification email:", error);
+      alert("Could not send verification email. Please try again later.");
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -131,6 +141,42 @@ export default function AdminVerifyPage() {
         Toggle verification status for farmer profiles. Only admins can access
         this page.
       </p>
+
+      {currentUser && !currentUser.emailVerified && (
+        <div
+          style={{
+            background: "#FFFBEB",
+            border: "1px solid #FCD34D",
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 24,
+          }}
+        >
+          <p style={{ margin: 0, color: "#92400E", lineHeight: 1.6 }}>
+            Your admin email is not verified yet, so verification changes will
+            be rejected.{" "}
+            {verificationSent
+              ? "Verification email sent. Click the link in it, then sign out and sign back in."
+              : "Verify it once to enable admin actions."}
+          </p>
+          {!verificationSent && (
+            <button
+              onClick={sendVerification}
+              style={{
+                marginTop: 12,
+                padding: "8px 16px",
+                background: "var(--color-primary)",
+                color: "var(--color-white)",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+              }}
+            >
+              Send verification email
+            </button>
+          )}
+        </div>
+      )}
 
       {farmers.length === 0 ? (
         <p style={{ color: "var(--color-text-secondary)" }}>
@@ -254,8 +300,8 @@ export default function AdminVerifyPage() {
           }}
         >
           <strong>Note:</strong> This is a minimal admin tool for toggling
-          farmer verification. To change the admin email, update the ADMIN_EMAIL
-          constant in this file. In production, implement proper admin role
+          farmer verification. To change the admin email, update ADMIN_EMAIL in
+          lib/admin.js and isAdmin() in firestore.rules. In production, implement proper admin role
           management.
         </p>
       </div>

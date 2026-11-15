@@ -6,6 +6,8 @@ import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
+import { ADMIN_EMAIL } from "../lib/admin";
+import { getUnreadNotificationCount } from "../lib/notificationService";
 
 export default function Navigation() {
   const router = useRouter();
@@ -15,6 +17,7 @@ export default function Navigation() {
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -33,6 +36,27 @@ export default function Navigation() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Unread notification count: refresh on login, on navigation, and when
+  // the notifications page marks items as read.
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+    const refresh = () =>
+      getUnreadNotificationCount(user.uid).then(setUnreadCount);
+    refresh();
+    window.addEventListener("notifications-read", refresh);
+    return () => window.removeEventListener("notifications-read", refresh);
+  }, [user, pathname]);
+
+  const notificationsLabel = (
+    <>
+      Notifications
+      {unreadCount > 0 && <span style={badgeStyle}>{unreadCount}</span>}
+    </>
+  );
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -95,7 +119,7 @@ export default function Navigation() {
           <Link href="/browse" style={linkStyle}>
             Browse Produce
           </Link>
-          {user?.email === "admin@farmtotable.com" && (
+          {user?.email === ADMIN_EMAIL && (
             <Link href="/admin/verify" style={linkStyle}>
               Admin
             </Link>
@@ -113,6 +137,11 @@ export default function Navigation() {
           {role === "buyer" && user && (
             <Link href="/my-deals" style={linkStyle}>
               My Deals
+            </Link>
+          )}
+          {user && (
+            <Link href="/notifications" style={linkStyle}>
+              {notificationsLabel}
             </Link>
           )}
           {user ? (
@@ -193,7 +222,7 @@ export default function Navigation() {
           >
             Browse Produce
           </Link>
-          {user?.email === "admin@farmtotable.com" && (
+          {user?.email === ADMIN_EMAIL && (
             <Link
               href="/admin/verify"
               style={mobileLinkStyle}
@@ -232,6 +261,13 @@ export default function Navigation() {
           {user ? (
             <>
               <Link
+                href="/notifications"
+                style={mobileLinkStyle}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {notificationsLabel}
+              </Link>
+              <Link
                 href="/profile"
                 style={mobileLinkStyle}
                 onClick={() => setMobileMenuOpen(false)}
@@ -264,6 +300,19 @@ const desktopNavStyle = {
 };
 
 // CSS class will handle responsive display via media queries
+
+const badgeStyle = {
+  display: "inline-block",
+  marginLeft: 6,
+  minWidth: 18,
+  padding: "0 6px",
+  borderRadius: 9,
+  background: "var(--color-primary)",
+  color: "var(--color-white)",
+  fontSize: 12,
+  lineHeight: "18px",
+  textAlign: "center",
+};
 
 const linkStyle = {
   color: "var(--color-text-primary)",
